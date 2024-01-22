@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.haulmont.shamrock.booking.quotes.audit">
+    <insert id="insertQuotation">
+        insert into quotation (
+            id,
+            date,
+            booking_channel,
+            event_date,
+            market,
+            asap,
+            customer_code,
+            client_id,
+            client_grade,
+            pickup_address,
+            pickup_postcode,
+            pickup_location_lat,
+            pickup_location_lon,
+            drop_address,
+            drop_postcode,
+            drop_location_lat,
+            drop_location_lon
+        ) values (
+            cast(#{quotation.id, javaType=java.util.UUID, jdbcType=OTHER} as uuid),
+            #{quotation.bookingDate},
+            #{quotation.bookingChannel},
+            #{quotation.eventDate},
+            #{quotation.market},
+            #{quotation.asap},
+            #{quotation.customerCode},
+            cast(#{quotation.clientId, javaType=java.util.UUID, jdbcType=OTHER} as uuid),
+            #{quotation.clientGrade},
+            #{quotation.pickupAddress},
+            #{quotation.pickupPostcode},
+            #{quotation.pickupLocationLat},
+            #{quotation.pickupLocationLon},
+            #{quotation.dropAddress},
+            #{quotation.dropPostcode},
+            #{quotation.dropLocationLat},
+            #{quotation.dropLocationLon}
+        )
+        on conflict(id) do nothing;
+
+        <if test="quotation.productAvailabilities != null and quotation.productAvailabilities.size() > 0">
+            insert into product_availability (
+                id,
+                quotation_id,
+                lead_time,
+                lead_time_source,
+                restriction_code,
+                restriction_message,
+                product_id,
+                product_code,
+                public_event_id
+            ) values
+            <foreach collection="quotation.productAvailabilities" separator="," item="item">
+                (cast(#{item.id, javaType=java.util.UUID, jdbcType=OTHER} as uuid),
+                cast(#{item.quotationId, javaType=java.util.UUID, jdbcType=OTHER} as uuid),
+                #{item.leadTime}::interval,
+                #{item.leadTimeSource},
+                #{item.restrictionCode},
+                #{item.restrictionMessage},
+                cast(#{item.productId, javaType=java.util.UUID, jdbcType=OTHER} as uuid),
+                #{item.productCode},
+                #{item.publicEventId})
+            </foreach>
+        </if>
+    </insert>
+
+    <update id="updateQuotation">
+        update
+            quotation
+        set
+            date = #{quotation.bookingDate},
+            booking_channel = #{quotation.bookingChannel},
+            event_date = #{quotation.eventDate},
+            market = #{quotation.market},
+            asap = #{quotation.asap},
+            customer_code = #{quotation.customerCode},
+            client_id = cast(#{quotation.clientId, javaType=java.util.UUID, jdbcType=OTHER} as uuid),
+            client_grade = #{quotation.clientGrade},
+            pickup_address = #{quotation.pickupAddress},
+            pickup_postcode = #{quotation.pickupPostcode},
+            pickup_location_lat = #{quotation.pickupLocationLat},
+            pickup_location_lon = #{quotation.pickupLocationLon},
+            drop_address = #{quotation.dropAddress},
+            drop_postcode = #{quotation.dropPostcode},
+            drop_location_lat = #{quotation.dropLocationLat},
+            drop_location_lon = #{quotation.dropLocationLon}
+        where
+            id = cast(#{quotation.id, javaType=java.util.UUID, jdbcType=OTHER} as uuid);
+
+        delete from product_availability where quotation_id = cast(#{quotation.id, javaType=java.util.UUID, jdbcType=OTHER} as uuid);
+
+        <if test="quotation.productAvailabilities != null and quotation.productAvailabilities.size() > 0">
+            insert into product_availability (
+                id,
+                quotation_id,
+                lead_time,
+                lead_time_source,
+                restriction_code,
+                restriction_message,
+                product_id,
+                product_code,
+                public_event_id
+            ) values
+            <foreach collection="quotation.productAvailabilities" separator="," item="item">
+                (cast(#{item.id, javaType=java.util.UUID, jdbcType=OTHER} as uuid),
+                cast(#{item.quotationId, javaType=java.util.UUID, jdbcType=OTHER} as uuid),
+                #{item.leadTime}::interval,
+                #{item.leadTimeSource},
+                #{item.restrictionCode},
+                #{item.restrictionMessage},
+                cast(#{item.productId, javaType=java.util.UUID, jdbcType=OTHER} as uuid),
+                #{item.productCode},
+                #{item.publicEventId})
+            </foreach>
+        </if>
+    </update>
+
+    <insert id="insertBooking">
+        insert into booking (
+            id,
+            quotation_id,
+            booking_number,
+            lead_time,
+            lead_time_source,
+            restriction_code,
+            restriction_message,
+            product_id,
+            product_code,
+            public_event_id
+        ) values (
+            cast(#{booking.id, javaType=java.util.UUID, jdbcType=OTHER} as uuid),
+            cast(#{booking.quotationId, javaType=java.util.UUID, jdbcType=OTHER} as uuid),
+            #{booking.bookingNumber},
+            #{booking.leadTime}::interval,
+            #{booking.leadTimeSource},
+            #{booking.restrictionCode},
+            #{booking.restrictionMessage},
+            cast(#{booking.productId, javaType=java.util.UUID, jdbcType=OTHER} as uuid),
+            #{booking.productCode},
+            #{booking.publicEventId})
+        on conflict(id) do update
+        set
+            quotation_id = cast(#{booking.quotationId, javaType=java.util.UUID, jdbcType=OTHER} as uuid),
+            booking_number = #{booking.bookingNumber},
+            lead_time = #{booking.leadTime}::interval,
+            lead_time_source = #{booking.leadTimeSource},
+            restriction_code = #{booking.restrictionCode},
+            restriction_message = #{booking.restrictionMessage},
+            product_id = cast(#{booking.productId, javaType=java.util.UUID, jdbcType=OTHER} as uuid),
+            product_code = #{booking.productCode},
+            public_event_id = #{booking.publicEventId}
+    </insert>
+
+    <select id="quotationExists" resultType="boolean">
+        select exists(select 1 from quotation where id = cast(#{quotationId, javaType=java.util.UUID, jdbcType=OTHER} as uuid))
+    </select>
+
+    <delete id="removeOldQuotations">
+        delete from quotation where event_date &lt; #{till}
+    </delete>
+
+</mapper>

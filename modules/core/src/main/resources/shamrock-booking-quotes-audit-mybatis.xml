@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+  ~ Copyright 2008 - 2023 Haulmont Technology Ltd. All Rights Reserved.
+  ~ Haulmont Technology proprietary and confidential.
+  ~ Use is subject to license terms.
+  -->
+
+<!DOCTYPE configuration
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+
+    <settings>
+        <setting name="cacheEnabled" value="false"/>
+        <setting name="lazyLoadingEnabled" value="false"/>
+        <setting name="multipleResultSetsEnabled" value="true"/>
+    </settings>
+
+    <typeHandlers>
+        <typeHandler javaType="org.joda.time.DateTime"
+                     handler="com.haulmont.monaco.mybatis.type.DateTimeTypeHandler"/>
+        <typeHandler javaType="java.util.UUID" handler="com.haulmont.monaco.mybatis.type.UUIDTypeHandler"/>
+    </typeHandlers>
+
+    <environments default="SHAMROCK">
+        <environment id="SHAMROCK">
+            <transactionManager type="JDBC"/>
+            <dataSource type="com.haulmont.monaco.mybatis.DataSourceFactory">
+                <property name="ds-name" value="shamrock-booking-quotes-audit-ds"/>
+            </dataSource>
+        </environment>
+    </environments>
+
+    <mappers>
+        <mapper resource="com/haulmont/shamrock/booking/quotes/audit/mybatis/mappers/QuotationMapper.xml"/>
+    </mappers>
+
+</configuration>
