@@ -44,8 +44,8 @@
         )
         on conflict(id) do nothing;
 
-        <if test="quotation.productAvailabilities != null and quotation.productAvailabilities.size() > 0">
-            insert into product_availability (
+        <if test="quotation.productQuotations != null and quotation.productQuotations.size() > 0">
+            insert into product_quotation (
                 id,
                 quotation_id,
                 lead_time,
@@ -54,9 +54,11 @@
                 restriction_message,
                 product_id,
                 product_code,
+                price,
+                currency_code,
                 public_event_id
             ) values
-            <foreach collection="quotation.productAvailabilities" separator="," item="item">
+            <foreach collection="quotation.productQuotations" separator="," item="item">
                 (cast(#{item.id, javaType=java.util.UUID, jdbcType=OTHER} as uuid),
                 cast(#{item.quotationId, javaType=java.util.UUID, jdbcType=OTHER} as uuid),
                 #{item.leadTime}::interval,
@@ -65,6 +67,8 @@
                 #{item.restrictionMessage},
                 cast(#{item.productId, javaType=java.util.UUID, jdbcType=OTHER} as uuid),
                 #{item.productCode},
+                #{item.price},
+                #{item.currencyCode},
                 #{item.publicEventId})
             </foreach>
         </if>
@@ -95,8 +99,8 @@
 
         delete from product_availability where quotation_id = cast(#{quotation.id, javaType=java.util.UUID, jdbcType=OTHER} as uuid);
 
-        <if test="quotation.productAvailabilities != null and quotation.productAvailabilities.size() > 0">
-            insert into product_availability (
+        <if test="quotation.productQuotations != null and quotation.productQuotations.size() > 0">
+            insert into product_quotation (
                 id,
                 quotation_id,
                 lead_time,
@@ -105,9 +109,11 @@
                 restriction_message,
                 product_id,
                 product_code,
+                price,
+                currency_code,
                 public_event_id
             ) values
-            <foreach collection="quotation.productAvailabilities" separator="," item="item">
+            <foreach collection="quotation.productQuotations" separator="," item="item">
                 (cast(#{item.id, javaType=java.util.UUID, jdbcType=OTHER} as uuid),
                 cast(#{item.quotationId, javaType=java.util.UUID, jdbcType=OTHER} as uuid),
                 #{item.leadTime}::interval,
@@ -116,6 +122,8 @@
                 #{item.restrictionMessage},
                 cast(#{item.productId, javaType=java.util.UUID, jdbcType=OTHER} as uuid),
                 #{item.productCode},
+                #{item.price},
+                #{item.currencyCode},
                 #{item.publicEventId})
             </foreach>
         </if>
@@ -132,6 +140,8 @@
             restriction_message,
             product_id,
             product_code,
+            price,
+            currency_code,
             public_event_id
         ) values (
             cast(#{booking.id, javaType=java.util.UUID, jdbcType=OTHER} as uuid),
@@ -143,6 +153,8 @@
             #{booking.restrictionMessage},
             cast(#{booking.productId, javaType=java.util.UUID, jdbcType=OTHER} as uuid),
             #{booking.productCode},
+            #{booking.price},
+            #{booking.currencyCode},
             #{booking.publicEventId})
         on conflict(id) do update
         set
@@ -154,6 +166,8 @@
             restriction_message = #{booking.restrictionMessage},
             product_id = cast(#{booking.productId, javaType=java.util.UUID, jdbcType=OTHER} as uuid),
             product_code = #{booking.productCode},
+            price = #{booking.price},
+            currency_code = #{booking.currencyCode},
             public_event_id = #{booking.publicEventId}
     </insert>
 

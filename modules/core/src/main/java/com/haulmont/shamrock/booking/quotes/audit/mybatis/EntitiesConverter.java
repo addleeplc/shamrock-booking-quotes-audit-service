@@ -10,7 +10,7 @@ import com.haulmont.shamrock.booking.quotes.audit.dto.ProductAvailabilityRecord;
 import com.haulmont.shamrock.booking.quotes.audit.dto.RestrictionCode;
 import com.haulmont.shamrock.booking.quotes.audit.model.shamrock.LeadTimeSource;
 import com.haulmont.shamrock.booking.quotes.audit.mybatis.entities.BookingRecord;
-import com.haulmont.shamrock.booking.quotes.audit.mybatis.entities.ProductAvailability;
+import com.haulmont.shamrock.booking.quotes.audit.mybatis.entities.ProductQuotation;
 import com.haulmont.shamrock.booking.quotes.audit.mybatis.entities.Quotation;
 import org.joda.time.Period;
 
@@ -68,25 +68,27 @@ public class EntitiesConverter {
         quotation.setDropLocationLat(record.getDropLocationLat());
         quotation.setDropLocationLon(record.getDropLocationLon());
 
-        List<ProductAvailability> productAvailabilities =
-                records.stream().map(EntitiesConverter::buildProductAvailability).collect(Collectors.toList());
-        quotation.setProductAvailabilities(productAvailabilities);
+        List<ProductQuotation> productQuotations =
+                records.stream().map(EntitiesConverter::buildProductQuotation).collect(Collectors.toList());
+        quotation.setProductQuotations(productQuotations);
 
         return quotation;
     }
 
-    public static ProductAvailability buildProductAvailability(ProductAvailabilityRecord record) {
-        ProductAvailability productAvailability = new ProductAvailability();
-        productAvailability.setId(UUID.randomUUID());
-        productAvailability.setQuotationId(record.getBookingId());
-        productAvailability.setLeadTime(periodToInterval(record.getResponseTime()));
-        productAvailability.setLeadTimeSource(Optional.ofNullable(record.getLeadTimeSource()).map(LeadTimeSource::toString).orElse(null));
-        productAvailability.setRestrictionCode(Optional.ofNullable(record.getRestrictionCode()).map(RestrictionCode::toString).orElse(null));
-        productAvailability.setRestrictionMessage(record.getRestrictionMessage());
-        productAvailability.setProductId(record.getProductId());
-        productAvailability.setProductCode(record.getProductCode());
-        productAvailability.setPublicEventId(record.getPublicEventId());
-        return productAvailability;
+    public static ProductQuotation buildProductQuotation(ProductAvailabilityRecord record) {
+        ProductQuotation productQuotation = new ProductQuotation();
+        productQuotation.setId(UUID.randomUUID());
+        productQuotation.setQuotationId(record.getBookingId());
+        productQuotation.setLeadTime(periodToInterval(record.getResponseTime()));
+        productQuotation.setLeadTimeSource(Optional.ofNullable(record.getLeadTimeSource()).map(LeadTimeSource::toString).orElse(null));
+        productQuotation.setRestrictionCode(Optional.ofNullable(record.getRestrictionCode()).map(RestrictionCode::toString).orElse(null));
+        productQuotation.setRestrictionMessage(record.getRestrictionMessage());
+        productQuotation.setProductId(record.getProductId());
+        productQuotation.setProductCode(record.getProductCode());
+        productQuotation.setPrice(record.getTotalCharged());
+        productQuotation.setCurrencyCode(record.getCurrencyCode());
+        productQuotation.setPublicEventId(record.getPublicEventId());
+        return productQuotation;
     }
 
     public static BookingRecord buildBooking(ProductAvailabilityRecord record) {
@@ -100,6 +102,8 @@ public class EntitiesConverter {
         booking.setRestrictionMessage(record.getRestrictionMessage());
         booking.setProductId(record.getProductId());
         booking.setProductCode(record.getProductCode());
+        booking.setPrice(record.getTotalCharged());
+        booking.setCurrencyCode(record.getCurrencyCode());
         booking.setPublicEventId(record.getPublicEventId());
         return booking;
     }

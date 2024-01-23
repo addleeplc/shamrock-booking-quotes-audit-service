@@ -6,6 +6,7 @@
 
 package com.haulmont.shamrock.booking.quotes.audit.mybatis.entities;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 public class BookingRecord {
@@ -18,6 +19,8 @@ public class BookingRecord {
     private String restrictionMessage;
     private UUID productId;
     private String productCode;
+    private BigDecimal price;
+    private String currencyCode;
     private String publicEventId;
 
     public UUID getId() {
@@ -90,6 +93,22 @@ public class BookingRecord {
 
     public void setProductCode(String productCode) {
         this.productCode = productCode;
+    }
+
+    public BigDecimal getPrice() {
+        return price;
+    }
+
+    public void setPrice(BigDecimal price) {
+        this.price = price;
+    }
+
+    public String getCurrencyCode() {
+        return currencyCode;
+    }
+
+    public void setCurrencyCode(String currencyCode) {
+        this.currencyCode = currencyCode;
     }
 
     public String getPublicEventId() {

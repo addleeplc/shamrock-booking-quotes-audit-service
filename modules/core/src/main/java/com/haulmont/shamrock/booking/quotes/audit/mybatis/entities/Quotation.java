@@ -30,7 +30,7 @@ public class Quotation implements Serializable {
     private String dropPostcode;
     private Double dropLocationLat;
     private Double dropLocationLon;
-    private List<ProductAvailability> productAvailabilities;
+    private List<ProductQuotation> productQuotations;
 
     public UUID getId() {
         return id;
@@ -168,11 +168,11 @@ public class Quotation implements Serializable {
         this.dropLocationLon = dropLocationLon;
     }
 
-    public List<ProductAvailability> getProductAvailabilities() {
-        return productAvailabilities;
+    public List<ProductQuotation> getProductQuotations() {
+        return productQuotations;
     }
 
-    public void setProductAvailabilities(List<ProductAvailability> productAvailabilities) {
-        this.productAvailabilities = productAvailabilities;
+    public void setProductQuotations(List<ProductQuotation> productQuotations) {
+        this.productQuotations = productQuotations;
     }
 }

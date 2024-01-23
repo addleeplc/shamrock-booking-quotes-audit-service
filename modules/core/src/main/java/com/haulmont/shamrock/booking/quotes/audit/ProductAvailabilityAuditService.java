@@ -24,6 +24,7 @@ import org.picocontainer.annotations.Component;
 import org.picocontainer.annotations.Inject;
 import org.slf4j.Logger;
 
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -64,7 +65,7 @@ public class ProductAvailabilityAuditService {
         ProductAvailabilityRecord record = productAvailabilityRecordConverter.createProductAvailabilityRecord(
                 booking, eventDate, EventType.BOOKING_CREATED);
 
-        checkIntermediateStorage(record);
+        saveBookingRecord(record);
     }
 
     public void processBookingAmended(Booking booking, DateTime eventDate) {
@@ -75,7 +76,20 @@ public class ProductAvailabilityAuditService {
         ProductAvailabilityRecord record = productAvailabilityRecordConverter.createProductAvailabilityRecord(
                 booking, eventDate, EventType.BOOKING_AMENDED);
 
-        checkIntermediateStorage(record);
+        saveBookingRecord(record);
+    }
+
+    public void processBookingPriced(Booking booking, DateTime eventDate, BigDecimal totalCharged, String currencyCode) {
+        if (isTestAccount(booking)) {
+            return;
+        }
+
+        ProductAvailabilityRecord record = productAvailabilityRecordConverter.createProductAvailabilityRecord(
+                booking, eventDate, EventType.BOOKING_PRICED);
+        record.setTotalCharged(totalCharged);
+        record.setCurrencyCode(currencyCode);
+
+        saveToIntermediateStorage(record);
     }
 
     public void processLeadTimeQuoted(Booking booking, DateTime eventDate, Period timeEstimate,
@@ -167,11 +181,12 @@ public class ProductAvailabilityAuditService {
     }
 
     /**
-     * Check if intermediate storage contains other records related to the same booking.
+     * Checks if intermediate storage contains other records related to the same booking
+     * and saves the booking record to database.
      *
      * @param bookingRecord record related to created/amended booking
      */
-    private void checkIntermediateStorage(ProductAvailabilityRecord bookingRecord) {
+    private void saveBookingRecord(ProductAvailabilityRecord bookingRecord) {
         logger.debug("Checking booking (id: {}) in the intermediate storage", bookingRecord.getBookingId());
         List<ProductAvailabilityRecord> quotes = productAvailabilityRecordStorage.get(bookingRecord.getBookingId());
 
@@ -188,6 +203,18 @@ public class ProductAvailabilityAuditService {
             bookingRecord.setPublicEventId(restriction.getPublicEventId());
         }
 
+        //add price info
+        List<ProductAvailabilityRecord> priceRecords = quotes.stream()
+                .filter(quote -> quote.getEventType() == EventType.BOOKING_PRICED)
+                .collect(Collectors.toList());
+        priceRecords.stream()
+                .filter(quote -> isRelevantForBooking(bookingRecord, quote))
+                .max(Comparator.comparing(ProductAvailabilityRecord::getCreateDate))
+                .ifPresent(record -> {
+                    bookingRecord.setTotalCharged(record.getTotalCharged());
+                    bookingRecord.setCurrencyCode(record.getCurrencyCode());
+                });
+
         //collect last quotations
         Optional<ProductAvailabilityRecord> lastQuote = quotes.stream()
                 .filter(quote -> quote.getEventType() == EventType.LEAD_TIME_QUOTED)
@@ -199,7 +226,15 @@ public class ProductAvailabilityAuditService {
                 List<ProductAvailabilityRecord> recordsBatch = quotes.stream()
                         .filter(qrt -> Objects.equals(qrt.getTransactionId(), transactionId))
                         .collect(Collectors.toList());
-
+                for (ProductAvailabilityRecord productQuote : recordsBatch) {
+                    priceRecords.stream()
+                            .filter(quote -> isRelevantForBooking(productQuote, quote))
+                            .max(Comparator.comparing(ProductAvailabilityRecord::getCreateDate))
+                            .ifPresent(record -> {
+                                productQuote.setTotalCharged(record.getTotalCharged());
+                                productQuote.setCurrencyCode(record.getCurrencyCode());
+                            });
+                }
                 logger.debug("Saving booking (id: {}, number: {}) to the database",
                         bookingRecord.getBookingId(), bookingRecord.getBookingNumber());
                 persistRecordsAsQuotation(recordsBatch);
@@ -221,10 +256,10 @@ public class ProductAvailabilityAuditService {
     }
 
     private boolean isRelevantForBooking(ProductAvailabilityRecord bookingRecord,
-                                         ProductAvailabilityRecord restrictionRecord) {
-        return Objects.equals(bookingRecord.getPickupAddress(), restrictionRecord.getPickupAddress()) &&
-                Objects.equals(bookingRecord.getProductId(), restrictionRecord.getProductId()) &&
-                Objects.equals(bookingRecord.getAsap(), restrictionRecord.getAsap());
+                                         ProductAvailabilityRecord otherRecord) {
+        return Objects.equals(bookingRecord.getPickupAddress(), otherRecord.getPickupAddress()) &&
+                Objects.equals(bookingRecord.getProductId(), otherRecord.getProductId()) &&
+                Objects.equals(bookingRecord.getAsap(), otherRecord.getAsap());
     }
 
     /**

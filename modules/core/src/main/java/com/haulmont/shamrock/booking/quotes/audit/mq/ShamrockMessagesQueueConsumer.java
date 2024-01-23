@@ -11,10 +11,12 @@ import com.haulmont.monaco.rabbit.mq.annotations.Consumer;
 import com.haulmont.shamrock.booking.quotes.audit.ProductAvailabilityAuditService;
 import com.haulmont.shamrock.booking.quotes.audit.ServiceConfiguration;
 import com.haulmont.shamrock.booking.quotes.audit.model.booking.Booking;
+import com.haulmont.shamrock.booking.quotes.audit.model.price.Price;
 import com.haulmont.shamrock.booking.quotes.audit.model.shamrock.LeadTimeSource;
 import com.haulmont.shamrock.booking.quotes.audit.model.shamrock.PublicEvent;
 import com.haulmont.shamrock.booking.quotes.audit.mq.messages.BookingAmended;
 import com.haulmont.shamrock.booking.quotes.audit.mq.messages.BookingCreated;
+import com.haulmont.shamrock.booking.quotes.audit.mq.messages.BookingPriced;
 import com.haulmont.shamrock.booking.quotes.audit.mq.messages.JobCheckRestriction;
 import com.haulmont.shamrock.booking.quotes.audit.mq.messages.LeadTimeQuoted;
 import com.haulmont.shamrock.booking.quotes.audit.mq.messages.PickupCircuitRestriction;
@@ -27,6 +29,8 @@ import org.joda.time.Period;
 import org.picocontainer.annotations.Component;
 import org.picocontainer.annotations.Inject;
 import org.slf4j.Logger;
+
+import java.math.BigDecimal;
 
 @Component
 @Consumer(server = ServiceConfiguration.SHAMROCK_MQ_SERVER_NAME, queue = ServiceConfiguration.SHAMROCK_CONSUMER_PROPERTY_PREFIX)
@@ -86,6 +90,23 @@ public class ShamrockMessagesQueueConsumer {
             productAvailabilityAuditService.processBookingAmended(booking, date);
         } catch (Exception e) {
             logger.error("Failed to process BookingAmended message (message.id: {})", message.getId(), e);
+        }
+    }
+
+    @Subscribe
+    public void handleBookingPriced(BookingPriced message) {
+        try {
+            Booking booking = message.getData().getBooking();
+            if (booking == null) return;
+
+            Price price = message.getData().getPrice();
+            BigDecimal totalCharged = price == null ? null : price.getTotalCharged();
+            String currencyCode = price == null ? null : price.getCurrencyCode();
+
+            DateTime date = message.getDate();
+            productAvailabilityAuditService.processBookingPriced(booking, date, totalCharged, currencyCode);
+        } catch (Exception e) {
+            logger.error("Failed to process BookingPriced message (message.id: {})", message.getId(), e);
         }
     }
 

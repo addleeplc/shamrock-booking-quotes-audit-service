@@ -14,6 +14,7 @@ public enum EventType {
     LEAD_TIME_QUOTED(false),
     BOOKING_CREATED(false),
     BOOKING_AMENDED(false),
+    BOOKING_PRICED(false),
     SCHEDULED_TASK(false);
 
     private final boolean isRestriction;

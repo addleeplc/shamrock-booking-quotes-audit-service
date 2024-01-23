@@ -1,18 +1,3 @@
-CREATE TABLE public.booking
-(   id uuid NOT NULL,
-    quotation_id uuid NOT NULL,
-    booking_number character varying,
-    lead_time interval,
-    lead_time_source varchar,
-    restriction_code varchar,
-    restriction_message text,
-	product_id uuid NULL,
-	product_code varchar NULL,
-    public_event_id varchar,
-    CONSTRAINT booking_pkey PRIMARY KEY (id),
-    constraint fk_booking_on_quotation foreign key (quotation_id) references quotation(id) on delete cascade
-);
-
 CREATE TABLE public.quotation
 (   id uuid NOT NULL,
     date timestamp,
@@ -36,7 +21,7 @@ CREATE TABLE public.quotation
 CREATE INDEX quotation_date_idx ON public.quotation USING btree (date);
 CREATE INDEX quotation_event_date_idx ON public.quotation USING btree (event_date);
 
-CREATE TABLE public.product_availability
+CREATE TABLE public.product_quotation
 (   id uuid NOT NULL,
     quotation_id uuid NOT NULL,
     lead_time interval,
@@ -45,7 +30,26 @@ CREATE TABLE public.product_availability
     restriction_message text,
 	product_id uuid NULL,
 	product_code varchar NULL,
+	price float8 NULL,
+	currency_code varchar NULL,
     public_event_id varchar,
     CONSTRAINT booking_restriction_pkey PRIMARY KEY (id),
 	constraint fk_product_availability_on_quotation foreign key (quotation_id) references quotation(id) on delete cascade
+);
+
+CREATE TABLE public.booking
+(   id uuid NOT NULL,
+    quotation_id uuid NOT NULL,
+    booking_number character varying,
+    lead_time interval,
+    lead_time_source varchar,
+    restriction_code varchar,
+    restriction_message text,
+	product_id uuid NULL,
+	product_code varchar NULL,
+	price float8 NULL,
+	currency_code varchar NULL,
+    public_event_id varchar,
+    CONSTRAINT booking_pkey PRIMARY KEY (id),
+    constraint fk_booking_on_quotation foreign key (quotation_id) references quotation(id) on delete cascade
 );

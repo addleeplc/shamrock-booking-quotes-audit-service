@@ -17,6 +17,7 @@ import org.joda.time.DateTime;
 import org.joda.time.Period;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -116,6 +117,12 @@ public class ProductAvailabilityRecord implements Serializable {
 
     @JsonProperty("public_event_id")
     private String publicEventId;
+
+    @JsonProperty("total_charged")
+    private BigDecimal totalCharged;
+
+    @JsonProperty("currency_code")
+    private String currencyCode;
 
     public String getTransactionId() {
         return transactionId;
@@ -347,5 +354,21 @@ public class ProductAvailabilityRecord implements Serializable {
 
     public void setCreateDate(DateTime createDate) {
         this.createDate = createDate;
+    }
+
+    public BigDecimal getTotalCharged() {
+        return totalCharged;
+    }
+
+    public void setTotalCharged(BigDecimal totalCharged) {
+        this.totalCharged = totalCharged;
+    }
+
+    public String getCurrencyCode() {
+        return currencyCode;
+    }
+
+    public void setCurrencyCode(String currencyCode) {
+        this.currencyCode = currencyCode;
     }
 }
