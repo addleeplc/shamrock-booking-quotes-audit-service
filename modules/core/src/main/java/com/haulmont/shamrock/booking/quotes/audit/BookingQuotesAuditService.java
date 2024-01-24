@@ -8,7 +8,7 @@ package com.haulmont.shamrock.booking.quotes.audit;
 
 import com.haulmont.shamrock.booking.quotes.audit.config.GlobalConfigurationCache;
 import com.haulmont.shamrock.booking.quotes.audit.dto.EventType;
-import com.haulmont.shamrock.booking.quotes.audit.dto.ProductAvailabilityRecord;
+import com.haulmont.shamrock.booking.quotes.audit.dto.ProductQuotationRecord;
 import com.haulmont.shamrock.booking.quotes.audit.dto.RestrictionCode;
 import com.haulmont.shamrock.booking.quotes.audit.model.booking.Booking;
 import com.haulmont.shamrock.booking.quotes.audit.model.shamrock.LeadTimeSource;
@@ -16,7 +16,7 @@ import com.haulmont.shamrock.booking.quotes.audit.mybatis.EntitiesConverter;
 import com.haulmont.shamrock.booking.quotes.audit.mybatis.QuotationRepository;
 import com.haulmont.shamrock.booking.quotes.audit.mybatis.entities.BookingRecord;
 import com.haulmont.shamrock.booking.quotes.audit.mybatis.entities.Quotation;
-import com.haulmont.shamrock.booking.quotes.audit.storage.ProductAvailabilityRecordStorage;
+import com.haulmont.shamrock.booking.quotes.audit.storage.ProductQuotationRecordStorage;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Period;
@@ -33,7 +33,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Component
-public class ProductAvailabilityAuditService {
+public class BookingQuotesAuditService {
 
     private static final List<EventType> RESTRICTION_EVENT_TYPES = List.of(
             EventType.JOB_CHECK_RESTRICTION, EventType.PICKUP_CIRCUIT_RESTRICTION,
@@ -43,10 +43,10 @@ public class ProductAvailabilityAuditService {
     private Logger logger;
 
     @Inject
-    private ProductAvailabilityRecordConverter productAvailabilityRecordConverter;
+    private ProductQuotationRecordConverter productQuotationRecordConverter;
 
     @Inject
-    private ProductAvailabilityRecordStorage productAvailabilityRecordStorage;
+    private ProductQuotationRecordStorage productQuotationRecordStorage;
 
     @Inject
     private QuotationRepository quotationRepository;
@@ -62,7 +62,7 @@ public class ProductAvailabilityAuditService {
             return;
         }
 
-        ProductAvailabilityRecord record = productAvailabilityRecordConverter.createProductAvailabilityRecord(
+        ProductQuotationRecord record = productQuotationRecordConverter.createProductQuotationRecord(
                 booking, eventDate, EventType.BOOKING_CREATED);
 
         saveBookingRecord(record);
@@ -73,7 +73,7 @@ public class ProductAvailabilityAuditService {
             return;
         }
 
-        ProductAvailabilityRecord record = productAvailabilityRecordConverter.createProductAvailabilityRecord(
+        ProductQuotationRecord record = productQuotationRecordConverter.createProductQuotationRecord(
                 booking, eventDate, EventType.BOOKING_AMENDED);
 
         saveBookingRecord(record);
@@ -84,7 +84,7 @@ public class ProductAvailabilityAuditService {
             return;
         }
 
-        ProductAvailabilityRecord record = productAvailabilityRecordConverter.createProductAvailabilityRecord(
+        ProductQuotationRecord record = productQuotationRecordConverter.createProductQuotationRecord(
                 booking, eventDate, EventType.BOOKING_PRICED);
         record.setTotalCharged(totalCharged);
         record.setCurrencyCode(currencyCode);
@@ -99,7 +99,7 @@ public class ProductAvailabilityAuditService {
             return;
         }
 
-        ProductAvailabilityRecord record = productAvailabilityRecordConverter.createProductAvailabilityRecord(
+        ProductQuotationRecord record = productQuotationRecordConverter.createProductQuotationRecord(
                 booking, eventDate, timeEstimate, leadTimeSource,
                 withinPublicEvent, EventType.LEAD_TIME_QUOTED, transactionId);
 
@@ -111,7 +111,7 @@ public class ProductAvailabilityAuditService {
             return;
         }
 
-        ProductAvailabilityRecord record = productAvailabilityRecordConverter.createProductAvailabilityRecord(
+        ProductQuotationRecord record = productQuotationRecordConverter.createProductQuotationRecord(
                 booking,
                 eventDate,
                 RestrictionCode.FULLY_BOOKED,
@@ -128,7 +128,7 @@ public class ProductAvailabilityAuditService {
             return;
         }
 
-        ProductAvailabilityRecord record = productAvailabilityRecordConverter.createProductAvailabilityRecord(
+        ProductQuotationRecord record = productQuotationRecordConverter.createProductQuotationRecord(
                 booking,
                 eventDate,
                 RestrictionCode.PUBLIC_EVENT,
@@ -145,7 +145,7 @@ public class ProductAvailabilityAuditService {
             return;
         }
 
-        ProductAvailabilityRecord record = productAvailabilityRecordConverter.createProductAvailabilityRecord(
+        ProductQuotationRecord record = productQuotationRecordConverter.createProductQuotationRecord(
                 booking,
                 eventDate,
                 RestrictionCode.BOOKING_POLICY,
@@ -161,7 +161,7 @@ public class ProductAvailabilityAuditService {
             return;
         }
 
-        ProductAvailabilityRecord record = productAvailabilityRecordConverter.createProductAvailabilityRecord(
+        ProductQuotationRecord record = productQuotationRecordConverter.createProductQuotationRecord(
                 booking,
                 eventDate,
                 RestrictionCode.PREBOOK_LIMIT,
@@ -172,12 +172,12 @@ public class ProductAvailabilityAuditService {
         saveToIntermediateStorage(record);
     }
 
-    private void saveToIntermediateStorage(ProductAvailabilityRecord record) {
-        productAvailabilityRecordStorage.put(record.getBookingId(), record);
+    private void saveToIntermediateStorage(ProductQuotationRecord record) {
+        productQuotationRecordStorage.put(record.getBookingId(), record);
     }
 
-    private void removeFromIntermediateStorage(ProductAvailabilityRecord record) {
-        productAvailabilityRecordStorage.remove(record.getBookingId());
+    private void removeFromIntermediateStorage(ProductQuotationRecord record) {
+        productQuotationRecordStorage.remove(record.getBookingId());
     }
 
     /**
@@ -186,50 +186,50 @@ public class ProductAvailabilityAuditService {
      *
      * @param bookingRecord record related to created/amended booking
      */
-    private void saveBookingRecord(ProductAvailabilityRecord bookingRecord) {
+    private void saveBookingRecord(ProductQuotationRecord bookingRecord) {
         logger.debug("Checking booking (id: {}) in the intermediate storage", bookingRecord.getBookingId());
-        List<ProductAvailabilityRecord> quotes = productAvailabilityRecordStorage.get(bookingRecord.getBookingId());
+        List<ProductQuotationRecord> quotes = productQuotationRecordStorage.get(bookingRecord.getBookingId());
 
         //add restriction info
-        Optional<ProductAvailabilityRecord> restrictionRecord = quotes.stream()
+        Optional<ProductQuotationRecord> restrictionRecord = quotes.stream()
                 .filter(quote -> RESTRICTION_EVENT_TYPES.contains(quote.getEventType()))
                 .filter(quote -> isRelevantForBooking(bookingRecord, quote))
-                .max(Comparator.comparing(ProductAvailabilityRecord::getCreateDate));
+                .max(Comparator.comparing(ProductQuotationRecord::getCreateDate));
 
         if (restrictionRecord.isPresent()) {
-            ProductAvailabilityRecord restriction = restrictionRecord.get();
+            ProductQuotationRecord restriction = restrictionRecord.get();
             bookingRecord.setRestrictionCode(restriction.getRestrictionCode());
             bookingRecord.setRestrictionMessage(restriction.getRestrictionMessage());
             bookingRecord.setPublicEventId(restriction.getPublicEventId());
         }
 
         //add price info
-        List<ProductAvailabilityRecord> priceRecords = quotes.stream()
+        List<ProductQuotationRecord> priceRecords = quotes.stream()
                 .filter(quote -> quote.getEventType() == EventType.BOOKING_PRICED)
                 .collect(Collectors.toList());
         priceRecords.stream()
                 .filter(quote -> isRelevantForBooking(bookingRecord, quote))
-                .max(Comparator.comparing(ProductAvailabilityRecord::getCreateDate))
+                .max(Comparator.comparing(ProductQuotationRecord::getCreateDate))
                 .ifPresent(record -> {
                     bookingRecord.setTotalCharged(record.getTotalCharged());
                     bookingRecord.setCurrencyCode(record.getCurrencyCode());
                 });
 
         //collect last quotations
-        Optional<ProductAvailabilityRecord> lastQuote = quotes.stream()
+        Optional<ProductQuotationRecord> lastQuote = quotes.stream()
                 .filter(quote -> quote.getEventType() == EventType.LEAD_TIME_QUOTED)
-                .max(Comparator.comparing(ProductAvailabilityRecord::getCreateDate));
+                .max(Comparator.comparing(ProductQuotationRecord::getCreateDate));
 
         if (lastQuote.isPresent()) {
             String transactionId = lastQuote.get().getTransactionId();
             if (StringUtils.isNotBlank(transactionId)) {
-                List<ProductAvailabilityRecord> recordsBatch = quotes.stream()
+                List<ProductQuotationRecord> recordsBatch = quotes.stream()
                         .filter(qrt -> Objects.equals(qrt.getTransactionId(), transactionId))
                         .collect(Collectors.toList());
-                for (ProductAvailabilityRecord productQuote : recordsBatch) {
+                for (ProductQuotationRecord productQuote : recordsBatch) {
                     priceRecords.stream()
                             .filter(quote -> isRelevantForBooking(productQuote, quote))
-                            .max(Comparator.comparing(ProductAvailabilityRecord::getCreateDate))
+                            .max(Comparator.comparing(ProductQuotationRecord::getCreateDate))
                             .ifPresent(record -> {
                                 productQuote.setTotalCharged(record.getTotalCharged());
                                 productQuote.setCurrencyCode(record.getCurrencyCode());
@@ -241,9 +241,9 @@ public class ProductAvailabilityAuditService {
 
                 //if responseTime is null, fill it with the best quote's delay in the recent batch
                 if (bookingRecord.getResponseTime() == null) {
-                    Optional<ProductAvailabilityRecord> bestQuoteInTransaction =
+                    Optional<ProductQuotationRecord> bestQuoteInTransaction =
                             recordsBatch.stream().min(Comparator.comparing(qrt -> qrt.getResponseTime().toStandardSeconds()));
-                    ProductAvailabilityRecord bestQuote = bestQuoteInTransaction.orElseGet(lastQuote::get);
+                    ProductQuotationRecord bestQuote = bestQuoteInTransaction.orElseGet(lastQuote::get);
                     bookingRecord.setResponseTime(bestQuote.getResponseTime());
                 }
                 removeFromIntermediateStorage(bookingRecord);
@@ -255,8 +255,8 @@ public class ProductAvailabilityAuditService {
         persistRecordAsBooking(bookingRecord);
     }
 
-    private boolean isRelevantForBooking(ProductAvailabilityRecord bookingRecord,
-                                         ProductAvailabilityRecord otherRecord) {
+    private boolean isRelevantForBooking(ProductQuotationRecord bookingRecord,
+                                         ProductQuotationRecord otherRecord) {
         return Objects.equals(bookingRecord.getPickupAddress(), otherRecord.getPickupAddress()) &&
                 Objects.equals(bookingRecord.getProductId(), otherRecord.getProductId()) &&
                 Objects.equals(bookingRecord.getAsap(), otherRecord.getAsap());
@@ -265,24 +265,24 @@ public class ProductAvailabilityAuditService {
     /**
      * Check if the given record is ready to be persisted.
      */
-    public void checkRecordFromIntermediateStorage(ProductAvailabilityRecord record) {
+    public void checkRecordFromIntermediateStorage(ProductQuotationRecord record) {
         logger.debug("Checking booking (id: {}) in the intermediate storage", record.getBookingId());
-        List<ProductAvailabilityRecord> quotes = productAvailabilityRecordStorage.get(record.getBookingId());
+        List<ProductQuotationRecord> quotes = productQuotationRecordStorage.get(record.getBookingId());
 
-        Optional<ProductAvailabilityRecord> lastQuote = quotes.stream()
-                .max(Comparator.comparing(ProductAvailabilityRecord::getCreateDate));
+        Optional<ProductQuotationRecord> lastQuote = quotes.stream()
+                .max(Comparator.comparing(ProductQuotationRecord::getCreateDate));
 
         if (lastQuote.isPresent()) {
             long waitNextEventMilliseconds = configuration.getStorageWaitNextEventMinutes() * 60 * 1000;
 
-            ProductAvailabilityRecord lastRecord = lastQuote.get();
+            ProductQuotationRecord lastRecord = lastQuote.get();
             String transactionId = lastRecord.getTransactionId();
-            List<ProductAvailabilityRecord> recordsBatch = null;
+            List<ProductQuotationRecord> recordsBatch = null;
             if (StringUtils.isNotBlank(transactionId)) {
                 recordsBatch = quotes.stream()
                         .filter(qrt -> Objects.equals(qrt.getTransactionId(), transactionId))
                         .collect(Collectors.toList());
-                Optional<ProductAvailabilityRecord> bestQuoteInTransaction =
+                Optional<ProductQuotationRecord> bestQuoteInTransaction =
                         recordsBatch.stream()
                                 .min(Comparator.comparing(qrt -> qrt.getResponseTime().toStandardSeconds()));
                 lastRecord = bestQuoteInTransaction.orElseGet(lastQuote::get);
@@ -291,13 +291,13 @@ public class ProductAvailabilityAuditService {
             if ((lastRecord.getCreateDate().getMillis() + waitNextEventMilliseconds) < System.currentTimeMillis()) {
                 if (lastRecord.getBookingDate() == null) {
                     Optional<DateTime> bookingDate = quotes.stream()
-                            .sorted(Comparator.comparing(ProductAvailabilityRecord::getCreateDate).reversed())
+                            .sorted(Comparator.comparing(ProductQuotationRecord::getCreateDate).reversed())
                             .filter(qrt -> qrt.getBookingDate() != null)
                             .findFirst()
-                            .map(ProductAvailabilityRecord::getBookingDate);
+                            .map(ProductQuotationRecord::getBookingDate);
                     bookingDate.ifPresent(lastRecord::setBookingDate);
                 }
-                List<ProductAvailabilityRecord> quotations = recordsBatch != null
+                List<ProductQuotationRecord> quotations = recordsBatch != null
                         ? recordsBatch : Collections.singletonList(lastRecord);
                 logger.debug("Saving last quote for booking (id: {}) to the database", record.getBookingId());
                 persistRecordsAsQuotation(quotations);
@@ -306,12 +306,12 @@ public class ProductAvailabilityAuditService {
         }
     }
 
-    private void persistRecordsAsQuotation(List<ProductAvailabilityRecord> records) {
+    private void persistRecordsAsQuotation(List<ProductQuotationRecord> records) {
         Quotation quotation = EntitiesConverter.buildQuotation(records);
         quotationRepository.insertQuotation(quotation);
     }
 
-    private void persistRecordAsBooking(ProductAvailabilityRecord record) {
+    private void persistRecordAsBooking(ProductQuotationRecord record) {
         BookingRecord booking = EntitiesConverter.buildBooking(record);
         quotationRepository.insertBooking(booking);
     }

@@ -97,7 +97,7 @@
         where
             id = cast(#{quotation.id, javaType=java.util.UUID, jdbcType=OTHER} as uuid);
 
-        delete from product_availability where quotation_id = cast(#{quotation.id, javaType=java.util.UUID, jdbcType=OTHER} as uuid);
+        delete from product_quotation where quotation_id = cast(#{quotation.id, javaType=java.util.UUID, jdbcType=OTHER} as uuid);
 
         <if test="quotation.productQuotations != null and quotation.productQuotations.size() > 0">
             insert into product_quotation (

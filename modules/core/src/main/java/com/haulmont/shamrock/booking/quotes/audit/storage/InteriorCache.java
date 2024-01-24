@@ -7,7 +7,7 @@
 package com.haulmont.shamrock.booking.quotes.audit.storage;
 
 import com.haulmont.shamrock.booking.quotes.audit.ServiceConfiguration;
-import com.haulmont.shamrock.booking.quotes.audit.dto.ProductAvailabilityRecord;
+import com.haulmont.shamrock.booking.quotes.audit.dto.ProductQuotationRecord;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -21,11 +21,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.stream.Collectors;
 
-public class InteriorCache implements ProductAvailabilityRecordStorage {
+public class InteriorCache implements ProductQuotationRecordStorage {
 
     private final ServiceConfiguration configuration;
 
-    private final Map<StorageKey, List<ProductAvailabilityRecord>> storage = new ConcurrentHashMap<>();
+    private final Map<StorageKey, List<ProductQuotationRecord>> storage = new ConcurrentHashMap<>();
     private final PriorityBlockingQueue<StorageKey> priorityQueue = new PriorityBlockingQueue<>(5000, Comparator.comparing(StorageKey::getCreateDate));
 
     public InteriorCache(ServiceConfiguration configuration) {
@@ -33,20 +33,20 @@ public class InteriorCache implements ProductAvailabilityRecordStorage {
     }
 
     @Override
-    public List<ProductAvailabilityRecord> get(UUID bookingId) {
+    public List<ProductQuotationRecord> get(UUID bookingId) {
         checkStorage();
         return storage.getOrDefault(new StorageKey(bookingId), Collections.emptyList());
     }
 
     @Override
-    public void put(UUID bookingId, ProductAvailabilityRecord quotedResponseTime) {
+    public void put(UUID bookingId, ProductQuotationRecord quotedResponseTime) {
         synchronized (this) {
             checkStorage();
             storage.compute(new StorageKey(bookingId), (key, quotedResponseTimes) -> {
                 if (!priorityQueue.contains(key)) {
                     priorityQueue.add(key);
                 }
-                List<ProductAvailabilityRecord> list = new ArrayList<>();
+                List<ProductQuotationRecord> list = new ArrayList<>();
                 if (quotedResponseTimes != null) {
                     list.addAll(quotedResponseTimes);
                 }

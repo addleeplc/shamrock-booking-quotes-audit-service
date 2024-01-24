@@ -10,7 +10,7 @@ import com.haulmont.shamrock.booking.quotes.audit.caches.ClientGradeCache;
 import com.haulmont.shamrock.booking.quotes.audit.caches.ProductCache;
 import com.haulmont.shamrock.booking.quotes.audit.dto.EventType;
 import com.haulmont.shamrock.booking.quotes.audit.dto.Market;
-import com.haulmont.shamrock.booking.quotes.audit.dto.ProductAvailabilityRecord;
+import com.haulmont.shamrock.booking.quotes.audit.dto.ProductQuotationRecord;
 import com.haulmont.shamrock.booking.quotes.audit.dto.RestrictionCode;
 import com.haulmont.shamrock.booking.quotes.audit.model.booking.Booking;
 import com.haulmont.shamrock.booking.quotes.audit.model.booking.Stop;
@@ -27,7 +27,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Component
-public class ProductAvailabilityRecordConverter {
+public class ProductQuotationRecordConverter {
 
     @Inject
     private ClientGradeCache clientGradeCache;
@@ -35,11 +35,11 @@ public class ProductAvailabilityRecordConverter {
     @Inject
     private ProductCache productCache;
 
-    public ProductAvailabilityRecord createProductAvailabilityRecord(
+    public ProductQuotationRecord createProductQuotationRecord(
             Booking booking,
             DateTime eventDate,
             EventType eventType) {
-        return createProductAvailabilityRecord(
+        return createProductQuotationRecord(
                 booking,
                 eventDate,
                 null,
@@ -53,13 +53,13 @@ public class ProductAvailabilityRecordConverter {
         );
     }
 
-    public ProductAvailabilityRecord createProductAvailabilityRecord(
+    public ProductQuotationRecord createProductQuotationRecord(
             Booking booking,
             DateTime eventDate,
             RestrictionCode restrictionCode,
             String restrictionMessage,
             EventType eventType) {
-        return createProductAvailabilityRecord(
+        return createProductQuotationRecord(
                 booking,
                 eventDate,
                 null,
@@ -73,14 +73,14 @@ public class ProductAvailabilityRecordConverter {
         );
     }
 
-    public ProductAvailabilityRecord createProductAvailabilityRecord(
+    public ProductQuotationRecord createProductQuotationRecord(
             Booking booking,
             DateTime eventDate,
             RestrictionCode restrictionCode,
             String restrictionMessage,
             String publicEventId,
             EventType eventType) {
-        return createProductAvailabilityRecord(
+        return createProductQuotationRecord(
                 booking,
                 eventDate,
                 null,
@@ -94,7 +94,7 @@ public class ProductAvailabilityRecordConverter {
         );
     }
 
-    public ProductAvailabilityRecord createProductAvailabilityRecord(
+    public ProductQuotationRecord createProductQuotationRecord(
             Booking booking,
             DateTime eventDate,
             Period timeEstimate,
@@ -102,7 +102,7 @@ public class ProductAvailabilityRecordConverter {
             Boolean withinPublicEvent,
             EventType eventType,
             String requestId) {
-        return createProductAvailabilityRecord(
+        return createProductQuotationRecord(
                 booking,
                 eventDate,
                 timeEstimate,
@@ -116,7 +116,7 @@ public class ProductAvailabilityRecordConverter {
         );
     }
 
-    private ProductAvailabilityRecord createProductAvailabilityRecord(
+    private ProductQuotationRecord createProductQuotationRecord(
             Booking booking,
             DateTime eventDate,
             Period timeEstimate,
@@ -127,7 +127,7 @@ public class ProductAvailabilityRecordConverter {
             EventType eventType,
             String requestId,
             String publicEventId) {
-        ProductAvailabilityRecord record = new ProductAvailabilityRecord();
+        ProductQuotationRecord record = new ProductQuotationRecord();
 
         record.setTransactionId(getTransactionId(requestId));
         record.setBookingId(booking.getId());

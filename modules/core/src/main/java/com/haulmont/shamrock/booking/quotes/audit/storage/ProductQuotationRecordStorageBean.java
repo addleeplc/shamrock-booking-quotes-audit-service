@@ -7,7 +7,7 @@
 package com.haulmont.shamrock.booking.quotes.audit.storage;
 
 import com.haulmont.shamrock.booking.quotes.audit.ServiceConfiguration;
-import com.haulmont.shamrock.booking.quotes.audit.dto.ProductAvailabilityRecord;
+import com.haulmont.shamrock.booking.quotes.audit.dto.ProductQuotationRecord;
 import org.picocontainer.annotations.Component;
 import org.picocontainer.annotations.Inject;
 
@@ -16,12 +16,12 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Component
-public class ProductAvailabilityRecordStorageBean implements ProductAvailabilityRecordStorage {
+public class ProductQuotationRecordStorageBean implements ProductQuotationRecordStorage {
 
     @Inject
     private ServiceConfiguration configuration;
 
-    private ProductAvailabilityRecordStorage storage;
+    private ProductQuotationRecordStorage storage;
 
     public void start() {
         String redisResources = Optional.ofNullable(configuration.getRedisResource()).orElse("");
@@ -33,13 +33,13 @@ public class ProductAvailabilityRecordStorageBean implements ProductAvailability
     }
 
     @Override
-    public List<ProductAvailabilityRecord> get(UUID bookingId) {
+    public List<ProductQuotationRecord> get(UUID bookingId) {
         return storage.get(bookingId);
     }
 
     @Override
-    public void put(UUID bookingId, ProductAvailabilityRecord productAvailabilityRecord) {
-        storage.put(bookingId, productAvailabilityRecord);
+    public void put(UUID bookingId, ProductQuotationRecord productQuotationRecord) {
+        storage.put(bookingId, productQuotationRecord);
     }
 
     @Override

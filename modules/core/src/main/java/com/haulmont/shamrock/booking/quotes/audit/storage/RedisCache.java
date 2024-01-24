@@ -12,17 +12,17 @@ import com.haulmont.monaco.redis.cache.RedisCacheObjectCodec;
 import com.haulmont.monaco.redis.cache.codec.JacksonObjectListCodec;
 import com.haulmont.monaco.redis.cache.codec.PropertyObjectCodec;
 import com.haulmont.shamrock.booking.quotes.audit.ServiceConfiguration;
-import com.haulmont.shamrock.booking.quotes.audit.dto.ProductAvailabilityRecord;
+import com.haulmont.shamrock.booking.quotes.audit.dto.ProductQuotationRecord;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
-public class RedisCache implements ProductAvailabilityRecordStorage {
+public class RedisCache implements ProductQuotationRecordStorage {
 
-    private final PropertyObjectCodec<UUID> keyCodec = new PropertyObjectCodec<>("ProductAvailabilityAudit", UUID.class, "bookingStatus");
-    private final RedisCacheObjectCodec<List<ProductAvailabilityRecord>> valueCodec = new JacksonObjectListCodec<>(ProductAvailabilityRecord.class);
+    private final PropertyObjectCodec<UUID> keyCodec = new PropertyObjectCodec<>("BookingQuotesAudit", UUID.class, "bookingStatus");
+    private final RedisCacheObjectCodec<List<ProductQuotationRecord>> valueCodec = new JacksonObjectListCodec<>(ProductQuotationRecord.class);
 
     private final ServiceConfiguration configuration;
 
@@ -34,13 +34,13 @@ public class RedisCache implements ProductAvailabilityRecordStorage {
     }
 
     @Override
-    public List<ProductAvailabilityRecord> get(UUID bookingId) {
+    public List<ProductQuotationRecord> get(UUID bookingId) {
         Redis<String, String> redis = getRedis();
 
         String key = keyCodec.encode(bookingId);
         List<String> rawValues = redis.lrange(key, 0L, -1L);
 
-        List<ProductAvailabilityRecord> result = new ArrayList<>();
+        List<ProductQuotationRecord> result = new ArrayList<>();
         for (String rawValue : rawValues) {
             result.addAll(valueCodec.decode(rawValue));
         }
@@ -49,7 +49,7 @@ public class RedisCache implements ProductAvailabilityRecordStorage {
     }
 
     @Override
-    public void put(UUID bookingId, ProductAvailabilityRecord record) {
+    public void put(UUID bookingId, ProductQuotationRecord record) {
         Redis<String, String> redis = getRedis();
 
         String key = keyCodec.encode(bookingId);

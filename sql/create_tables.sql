@@ -34,7 +34,7 @@ CREATE TABLE public.product_quotation
 	currency_code varchar NULL,
     public_event_id varchar,
     CONSTRAINT booking_restriction_pkey PRIMARY KEY (id),
-	constraint fk_product_availability_on_quotation foreign key (quotation_id) references quotation(id) on delete cascade
+	constraint fk_product_quotation_on_quotation foreign key (quotation_id) references quotation(id) on delete cascade
 );
 
 CREATE TABLE public.booking

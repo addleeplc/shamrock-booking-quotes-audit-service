@@ -21,7 +21,7 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ProductAvailabilityRecord implements Serializable {
+public class ProductQuotationRecord implements Serializable {
 
     @JsonProperty("transaction_id")
     private String transactionId;

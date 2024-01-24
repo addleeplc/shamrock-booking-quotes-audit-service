@@ -8,7 +8,7 @@ package com.haulmont.shamrock.booking.quotes.audit.mq;
 
 import com.haulmont.monaco.mq.annotations.Subscribe;
 import com.haulmont.monaco.rabbit.mq.annotations.Consumer;
-import com.haulmont.shamrock.booking.quotes.audit.ProductAvailabilityAuditService;
+import com.haulmont.shamrock.booking.quotes.audit.BookingQuotesAuditService;
 import com.haulmont.shamrock.booking.quotes.audit.ServiceConfiguration;
 import com.haulmont.shamrock.booking.quotes.audit.model.booking.Booking;
 import com.haulmont.shamrock.booking.quotes.audit.model.price.Price;
@@ -40,7 +40,7 @@ public class ShamrockMessagesQueueConsumer {
     private Logger logger;
 
     @Inject
-    private ProductAvailabilityAuditService productAvailabilityAuditService;
+    private BookingQuotesAuditService bookingQuotesAuditService;
 
     @SuppressWarnings("unused")
     @Subscribe
@@ -57,7 +57,7 @@ public class ShamrockMessagesQueueConsumer {
             Boolean withinPublicEvent = message.getData().getWithinPublicEvent();
             String transactionId = message.getData().getTransactionId();
 
-            productAvailabilityAuditService.processLeadTimeQuoted(booking, date, timeEstimate,
+            bookingQuotesAuditService.processLeadTimeQuoted(booking, date, timeEstimate,
                     responseTimeSource, withinPublicEvent, transactionId);
         } catch (Exception e) {
             logger.error("Failed to process LeadTimeQuoted message (message.id: {})", message.getId(), e);
@@ -74,7 +74,7 @@ public class ShamrockMessagesQueueConsumer {
 
             DateTime date = message.getDate();
 
-            productAvailabilityAuditService.processBookingCreated(booking, date);
+            bookingQuotesAuditService.processBookingCreated(booking, date);
         } catch (Exception e) {
             logger.error("Failed to process BookingCreated message (message.id: {})", message.getId(), e);
         }
@@ -87,7 +87,7 @@ public class ShamrockMessagesQueueConsumer {
             if (booking == null) return;
 
             DateTime date = message.getDate();
-            productAvailabilityAuditService.processBookingAmended(booking, date);
+            bookingQuotesAuditService.processBookingAmended(booking, date);
         } catch (Exception e) {
             logger.error("Failed to process BookingAmended message (message.id: {})", message.getId(), e);
         }
@@ -104,7 +104,7 @@ public class ShamrockMessagesQueueConsumer {
             String currencyCode = price == null ? null : price.getCurrencyCode();
 
             DateTime date = message.getDate();
-            productAvailabilityAuditService.processBookingPriced(booking, date, totalCharged, currencyCode);
+            bookingQuotesAuditService.processBookingPriced(booking, date, totalCharged, currencyCode);
         } catch (Exception e) {
             logger.error("Failed to process BookingPriced message (message.id: {})", message.getId(), e);
         }
@@ -121,7 +121,7 @@ public class ShamrockMessagesQueueConsumer {
 
             DateTime date = message.getDate();
 
-            productAvailabilityAuditService.processPickupCircuitRestriction(booking, date, StringUtils.EMPTY);
+            bookingQuotesAuditService.processPickupCircuitRestriction(booking, date, StringUtils.EMPTY);
         } catch (Exception e) {
             logger.error("Failed to process PickupCircuitRestriction message (message.id: {})", message.getId(), e);
         }
@@ -146,7 +146,7 @@ public class ShamrockMessagesQueueConsumer {
                 publicEventName = publicEvent.getName();
             }
 
-            productAvailabilityAuditService.processPublicEventsRestriction(booking, date, publicEventName, publicEventId);
+            bookingQuotesAuditService.processPublicEventsRestriction(booking, date, publicEventName, publicEventId);
         } catch (Exception e) {
             logger.error("Failed to process PublicEventsRestriction message (message.id: {})", message.getId(), e);
         }
@@ -165,7 +165,7 @@ public class ShamrockMessagesQueueConsumer {
             JobCheckRestriction.Data.Type restrictionType = message.getData().getType();
             String restrictionMessage = restrictionType != null ? restrictionType.toString() : StringUtils.EMPTY;
 
-            productAvailabilityAuditService.processJobCheckRestriction(booking, date, restrictionMessage);
+            bookingQuotesAuditService.processJobCheckRestriction(booking, date, restrictionMessage);
         } catch (Exception e) {
             logger.error("Failed to process JobCheckRestriction message (message.id: {})", message.getId(), e);
         }
@@ -182,7 +182,7 @@ public class ShamrockMessagesQueueConsumer {
 
             DateTime date = message.getDate();
 
-            productAvailabilityAuditService.processPrebookLimitRestriction(booking, date, StringUtils.EMPTY);
+            bookingQuotesAuditService.processPrebookLimitRestriction(booking, date, StringUtils.EMPTY);
         } catch (Exception e) {
             logger.error("Failed to process PrebookLimitRestriction message (message.id: {})", message.getId(), e);
         }

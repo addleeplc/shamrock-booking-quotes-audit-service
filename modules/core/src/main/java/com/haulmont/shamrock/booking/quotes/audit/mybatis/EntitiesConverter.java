@@ -6,7 +6,7 @@
 
 package com.haulmont.shamrock.booking.quotes.audit.mybatis;
 
-import com.haulmont.shamrock.booking.quotes.audit.dto.ProductAvailabilityRecord;
+import com.haulmont.shamrock.booking.quotes.audit.dto.ProductQuotationRecord;
 import com.haulmont.shamrock.booking.quotes.audit.dto.RestrictionCode;
 import com.haulmont.shamrock.booking.quotes.audit.model.shamrock.LeadTimeSource;
 import com.haulmont.shamrock.booking.quotes.audit.mybatis.entities.BookingRecord;
@@ -44,11 +44,11 @@ public class EntitiesConverter {
         return !interval.toString().trim().isEmpty() ? interval.toString().trim() : null;
     }
 
-    public static Quotation buildQuotation(List<ProductAvailabilityRecord> records) {
+    public static Quotation buildQuotation(List<ProductQuotationRecord> records) {
         if (records == null || records.isEmpty()) {
             return null;
         }
-        ProductAvailabilityRecord record = records.get(0);
+        ProductQuotationRecord record = records.get(0);
         Quotation quotation = new Quotation();
         quotation.setId(record.getBookingId());
         quotation.setBookingDate(record.getBookingDate());
@@ -75,7 +75,7 @@ public class EntitiesConverter {
         return quotation;
     }
 
-    public static ProductQuotation buildProductQuotation(ProductAvailabilityRecord record) {
+    public static ProductQuotation buildProductQuotation(ProductQuotationRecord record) {
         ProductQuotation productQuotation = new ProductQuotation();
         productQuotation.setId(UUID.randomUUID());
         productQuotation.setQuotationId(record.getBookingId());
@@ -91,7 +91,7 @@ public class EntitiesConverter {
         return productQuotation;
     }
 
-    public static BookingRecord buildBooking(ProductAvailabilityRecord record) {
+    public static BookingRecord buildBooking(ProductQuotationRecord record) {
         BookingRecord booking = new BookingRecord();
         booking.setId(record.getBookingId());
         booking.setQuotationId(record.getBookingId());

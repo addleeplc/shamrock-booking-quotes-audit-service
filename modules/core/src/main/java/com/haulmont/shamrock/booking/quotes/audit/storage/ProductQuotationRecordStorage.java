@@ -6,7 +6,7 @@
 
 package com.haulmont.shamrock.booking.quotes.audit.storage;
 
-import com.haulmont.shamrock.booking.quotes.audit.dto.ProductAvailabilityRecord;
+import com.haulmont.shamrock.booking.quotes.audit.dto.ProductQuotationRecord;
 
 import java.util.List;
 import java.util.UUID;
@@ -14,11 +14,11 @@ import java.util.UUID;
 /**
  * Intermediate storage (cache) for quotes.
  */
-public interface ProductAvailabilityRecordStorage {
+public interface ProductQuotationRecordStorage {
 
-    List<ProductAvailabilityRecord> get(UUID bookingId);
+    List<ProductQuotationRecord> get(UUID bookingId);
 
-    void put(UUID bookingId, ProductAvailabilityRecord productAvailabilityRecord);
+    void put(UUID bookingId, ProductQuotationRecord productQuotationRecord);
 
     void remove(UUID bookingId);
 
