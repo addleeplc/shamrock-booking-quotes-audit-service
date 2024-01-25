@@ -28,6 +28,7 @@ import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -215,7 +216,7 @@ public class BookingQuotesAuditService {
                     bookingRecord.setCurrencyCode(record.getCurrencyCode());
                 });
 
-        //collect last quotations
+        //collect last quotation
         Optional<ProductQuotationRecord> lastQuote = quotes.stream()
                 .filter(quote -> quote.getEventType() == EventType.LEAD_TIME_QUOTED)
                 .max(Comparator.comparing(ProductQuotationRecord::getCreateDate));
@@ -226,6 +227,29 @@ public class BookingQuotesAuditService {
                 List<ProductQuotationRecord> recordsBatch = quotes.stream()
                         .filter(qrt -> Objects.equals(qrt.getTransactionId(), transactionId))
                         .collect(Collectors.toList());
+
+                if (recordsBatch.size() < 2) {
+                    //try searching for not too old batch with the chosen product and more than 1 quote
+                    long batchMaxAgeMilliseconds = configuration.getStorageBatchMaxAgeSeconds() * 1000;
+
+                    Map<String, List<ProductQuotationRecord>> leadTimeQuotedBatches = quotes.stream()
+                            .filter(quote -> quote.getEventType() == EventType.LEAD_TIME_QUOTED)
+                            .filter(quote -> StringUtils.isNotBlank(quote.getTransactionId()))
+                            .collect(Collectors.groupingBy(ProductQuotationRecord::getTransactionId));
+                    Optional<List<ProductQuotationRecord>> lastAppropriateBatch = quotes.stream()
+                            .filter(quote -> quote.getEventType() == EventType.LEAD_TIME_QUOTED)
+                            .filter(quote -> isRelevantForBooking(bookingRecord, quote))
+                            .filter(quote -> quote.getCreateDate().getMillis() + batchMaxAgeMilliseconds < System.currentTimeMillis())
+                            .filter(quote -> StringUtils.isNotBlank(quote.getTransactionId()))
+                            .filter(quote -> leadTimeQuotedBatches.get(quote.getTransactionId()).size() > 1)
+                            .max(Comparator.comparing(ProductQuotationRecord::getCreateDate))
+                            .map(productQuotationRecord -> leadTimeQuotedBatches.get(productQuotationRecord.getTransactionId()));
+
+                    if (lastAppropriateBatch.isPresent()) {
+                        recordsBatch = lastAppropriateBatch.get();
+                    }
+                }
+
                 for (ProductQuotationRecord productQuote : recordsBatch) {
                     priceRecords.stream()
                             .filter(quote -> isRelevantForBooking(productQuote, quote))
@@ -257,8 +281,9 @@ public class BookingQuotesAuditService {
 
     private boolean isRelevantForBooking(ProductQuotationRecord bookingRecord,
                                          ProductQuotationRecord otherRecord) {
-        return Objects.equals(bookingRecord.getPickupAddress(), otherRecord.getPickupAddress()) &&
-                Objects.equals(bookingRecord.getProductId(), otherRecord.getProductId()) &&
+        return Objects.equals(bookingRecord.getProductId(), otherRecord.getProductId()) &&
+                Objects.equals(bookingRecord.getPickupAddress(), otherRecord.getPickupAddress()) &&
+                Objects.equals(bookingRecord.getDropAddress(), otherRecord.getDropAddress()) &&
                 Objects.equals(bookingRecord.getAsap(), otherRecord.getAsap());
     }
 

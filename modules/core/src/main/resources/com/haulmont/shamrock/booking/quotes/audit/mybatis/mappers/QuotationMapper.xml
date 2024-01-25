@@ -22,7 +22,8 @@
             drop_address,
             drop_postcode,
             drop_location_lat,
-            drop_location_lon
+            drop_location_lon,
+            transaction_id
         ) values (
             cast(#{quotation.id, javaType=java.util.UUID, jdbcType=OTHER} as uuid),
             #{quotation.bookingDate},
@@ -40,7 +41,8 @@
             #{quotation.dropAddress},
             #{quotation.dropPostcode},
             #{quotation.dropLocationLat},
-            #{quotation.dropLocationLon}
+            #{quotation.dropLocationLon},
+            #{quotation.transactionId}
         )
         on conflict(id) do nothing;
 
@@ -93,7 +95,8 @@
             drop_address = #{quotation.dropAddress},
             drop_postcode = #{quotation.dropPostcode},
             drop_location_lat = #{quotation.dropLocationLat},
-            drop_location_lon = #{quotation.dropLocationLon}
+            drop_location_lon = #{quotation.dropLocationLon},
+            transaction_id = #{quotation.transactionId}
         where
             id = cast(#{quotation.id, javaType=java.util.UUID, jdbcType=OTHER} as uuid);
 

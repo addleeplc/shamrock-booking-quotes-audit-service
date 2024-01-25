@@ -67,6 +67,7 @@ public class EntitiesConverter {
         quotation.setDropPostcode(record.getDropPostcode());
         quotation.setDropLocationLat(record.getDropLocationLat());
         quotation.setDropLocationLon(record.getDropLocationLon());
+        quotation.setTransactionId(record.getTransactionId());
 
         List<ProductQuotation> productQuotations =
                 records.stream().map(EntitiesConverter::buildProductQuotation).collect(Collectors.toList());

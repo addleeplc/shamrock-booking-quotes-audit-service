@@ -30,6 +30,7 @@ public class Quotation implements Serializable {
     private String dropPostcode;
     private Double dropLocationLat;
     private Double dropLocationLon;
+    private String transactionId;
     private List<ProductQuotation> productQuotations;
 
     public UUID getId() {
@@ -166,6 +167,14 @@ public class Quotation implements Serializable {
 
     public void setDropLocationLon(Double dropLocationLon) {
         this.dropLocationLon = dropLocationLon;
+    }
+
+    public String getTransactionId() {
+        return transactionId;
+    }
+
+    public void setTransactionId(String transactionId) {
+        this.transactionId = transactionId;
     }
 
     public List<ProductQuotation> getProductQuotations() {

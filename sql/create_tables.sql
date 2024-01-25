@@ -16,6 +16,7 @@ CREATE TABLE public.quotation
     drop_postcode varchar,
     drop_location_lat float8,
     drop_location_lon float8,
+    transaction_id varchar,
     CONSTRAINT quotation_pkey PRIMARY KEY (id)
 );
 CREATE INDEX quotation_date_idx ON public.quotation USING btree (date);

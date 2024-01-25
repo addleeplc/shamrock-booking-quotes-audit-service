@@ -30,6 +30,9 @@ public interface ServiceConfiguration {
     @Property("storage.expire-after.minutes")
     Long getStorageExpireAfterMinutes();
 
+    @Property("storage.batch-max-age.seconds")
+    Long getStorageBatchMaxAgeSeconds();
+
     @Property("db.clean.older-than.days")
     Integer getDbCleanOlderThanDays();
 }
