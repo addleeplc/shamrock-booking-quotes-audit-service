@@ -8,8 +8,6 @@ package com.haulmont.shamrock.booking.quotes.audit;
 
 import com.haulmont.monaco.scheduler.annotations.Schedule;
 import com.haulmont.monaco.scheduler.annotations.Scheduled;
-import com.haulmont.shamrock.booking.quotes.audit.dto.EventType;
-import com.haulmont.shamrock.booking.quotes.audit.dto.ProductQuotationRecord;
 import com.haulmont.shamrock.booking.quotes.audit.storage.ProductQuotationRecordStorage;
 import org.picocontainer.annotations.Component;
 import org.picocontainer.annotations.Inject;
@@ -29,13 +27,7 @@ public class ScheduledStorageChecker {
 
     @Schedule(schedule = ServiceConfiguration.STORAGE_CHECK_RATE, delay = ServiceConfiguration.STORAGE_CHECK_RATE)
     public void check() {
-        List<UUID> ids = productQuotationRecordStorage.keys();
-
-        for (UUID id : ids) {
-            ProductQuotationRecord record = new ProductQuotationRecord();
-            record.setBookingId(id);
-            record.setEventType(EventType.SCHEDULED_TASK);
-            bookingQuotesAuditService.checkRecordFromIntermediateStorage(record);
-        }
+        productQuotationRecordStorage.keys().forEach(bookingId ->
+                        bookingQuotesAuditService.checkRecordsFromIntermediateStorage(bookingId));
     }
 }

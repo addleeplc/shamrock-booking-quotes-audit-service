@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Component
@@ -288,11 +289,11 @@ public class BookingQuotesAuditService {
     }
 
     /**
-     * Check if the given record is ready to be persisted.
+     * Checks if booking with the given id is ready to be persisted.
      */
-    public void checkRecordFromIntermediateStorage(ProductQuotationRecord record) {
-        logger.debug("Checking booking (id: {}) in the intermediate storage", record.getBookingId());
-        List<ProductQuotationRecord> quotes = productQuotationRecordStorage.get(record.getBookingId());
+    public void checkRecordsFromIntermediateStorage(UUID bookingId) {
+        logger.debug("Checking booking (id: {}) in the intermediate storage", bookingId);
+        List<ProductQuotationRecord> quotes = productQuotationRecordStorage.get(bookingId);
 
         Optional<ProductQuotationRecord> lastQuote = quotes.stream()
                 .max(Comparator.comparing(ProductQuotationRecord::getCreateDate));
@@ -324,7 +325,22 @@ public class BookingQuotesAuditService {
                 }
                 List<ProductQuotationRecord> quotations = recordsBatch != null
                         ? recordsBatch : Collections.singletonList(lastRecord);
-                logger.debug("Saving last quote for booking (id: {}) to the database", record.getBookingId());
+
+                //add price info
+                List<ProductQuotationRecord> priceRecords = quotes.stream()
+                        .filter(quote -> quote.getEventType() == EventType.BOOKING_PRICED)
+                        .collect(Collectors.toList());
+                for (ProductQuotationRecord productQuote : quotations) {
+                    priceRecords.stream()
+                            .filter(quote -> isRelevantForBooking(productQuote, quote))
+                            .max(Comparator.comparing(ProductQuotationRecord::getCreateDate))
+                            .ifPresent(record -> {
+                                productQuote.setTotalCharged(record.getTotalCharged());
+                                productQuote.setCurrencyCode(record.getCurrencyCode());
+                            });
+                }
+
+                logger.debug("Saving last quote for booking (id: {}) to the database", bookingId);
                 persistRecordsAsQuotation(quotations);
                 removeFromIntermediateStorage(lastRecord);
             }
