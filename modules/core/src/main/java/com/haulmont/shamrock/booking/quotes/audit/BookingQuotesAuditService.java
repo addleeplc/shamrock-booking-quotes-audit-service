@@ -193,17 +193,18 @@ public class BookingQuotesAuditService {
         List<ProductQuotationRecord> quotes = productQuotationRecordStorage.get(bookingRecord.getBookingId());
 
         //add restriction info
-        Optional<ProductQuotationRecord> restrictionRecord = quotes.stream()
+        List<ProductQuotationRecord> restrictionRecords = quotes.stream()
                 .filter(quote -> RESTRICTION_EVENT_TYPES.contains(quote.getEventType()))
-                .filter(quote -> isRelevantForBooking(bookingRecord, quote))
-                .max(Comparator.comparing(ProductQuotationRecord::getCreateDate));
+                .collect(Collectors.toList());
 
-        if (restrictionRecord.isPresent()) {
-            ProductQuotationRecord restriction = restrictionRecord.get();
-            bookingRecord.setRestrictionCode(restriction.getRestrictionCode());
-            bookingRecord.setRestrictionMessage(restriction.getRestrictionMessage());
-            bookingRecord.setPublicEventId(restriction.getPublicEventId());
-        }
+        restrictionRecords.stream()
+                .filter(quote -> isRelevantForBooking(bookingRecord, quote))
+                .max(Comparator.comparing(ProductQuotationRecord::getCreateDate))
+                .ifPresent(restriction -> {
+                    bookingRecord.setRestrictionCode(restriction.getRestrictionCode());
+                    bookingRecord.setRestrictionMessage(restriction.getRestrictionMessage());
+                    bookingRecord.setPublicEventId(restriction.getPublicEventId());
+                });
 
         //add price info
         List<ProductQuotationRecord> priceRecords = quotes.stream()
@@ -212,14 +213,15 @@ public class BookingQuotesAuditService {
         priceRecords.stream()
                 .filter(quote -> isRelevantForBooking(bookingRecord, quote))
                 .max(Comparator.comparing(ProductQuotationRecord::getCreateDate))
-                .ifPresent(record -> {
-                    bookingRecord.setTotalCharged(record.getTotalCharged());
-                    bookingRecord.setCurrencyCode(record.getCurrencyCode());
+                .ifPresent(price -> {
+                    bookingRecord.setTotalCharged(price.getTotalCharged());
+                    bookingRecord.setCurrencyCode(price.getCurrencyCode());
                 });
 
         //collect last quotation
         Optional<ProductQuotationRecord> lastQuote = quotes.stream()
                 .filter(quote -> quote.getEventType() == EventType.LEAD_TIME_QUOTED)
+                .filter(quote -> isRelevantForBooking(bookingRecord, quote))
                 .max(Comparator.comparing(ProductQuotationRecord::getCreateDate));
 
         if (lastQuote.isPresent()) {
@@ -258,6 +260,14 @@ public class BookingQuotesAuditService {
                             .ifPresent(record -> {
                                 productQuote.setTotalCharged(record.getTotalCharged());
                                 productQuote.setCurrencyCode(record.getCurrencyCode());
+                            });
+                    restrictionRecords.stream()
+                            .filter(quote -> isRelevantForBooking(productQuote, quote))
+                            .max(Comparator.comparing(ProductQuotationRecord::getCreateDate))
+                            .ifPresent(restriction -> {
+                                productQuote.setRestrictionCode(restriction.getRestrictionCode());
+                                productQuote.setRestrictionMessage(restriction.getRestrictionMessage());
+                                productQuote.setPublicEventId(restriction.getPublicEventId());
                             });
                 }
                 logger.debug("Saving booking (id: {}, number: {}) to the database",
