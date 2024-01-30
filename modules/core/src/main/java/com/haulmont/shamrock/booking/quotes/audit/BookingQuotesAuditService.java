@@ -241,7 +241,7 @@ public class BookingQuotesAuditService {
                             .collect(Collectors.groupingBy(ProductQuotationRecord::getTransactionId));
                     Optional<List<ProductQuotationRecord>> lastAppropriateBatch = quotes.stream()
                             .filter(quote -> quote.getEventType() == EventType.LEAD_TIME_QUOTED)
-                            .filter(quote -> isRelevantForBooking(bookingRecord, quote, false))
+                            .filter(quote -> isRelevantForBooking(bookingRecord, quote))
                             .filter(quote -> quote.getCreateDate().getMillis() + batchMaxAgeMilliseconds < System.currentTimeMillis())
                             .filter(quote -> StringUtils.isNotBlank(quote.getTransactionId()))
                             .filter(quote -> leadTimeQuotedBatches.get(quote.getTransactionId()).size() > 1)
@@ -292,12 +292,7 @@ public class BookingQuotesAuditService {
 
     private boolean isRelevantForBooking(ProductQuotationRecord bookingRecord,
                                          ProductQuotationRecord otherRecord) {
-        return isRelevantForBooking(bookingRecord, otherRecord, true);
-    }
-
-    private boolean isRelevantForBooking(ProductQuotationRecord bookingRecord,
-                                         ProductQuotationRecord otherRecord, boolean checkProduct) {
-        return (!checkProduct || Objects.equals(bookingRecord.getProductId(), otherRecord.getProductId())) &&
+        return Objects.equals(bookingRecord.getProductId(), otherRecord.getProductId()) &&
                 Objects.equals(bookingRecord.getPickupAddress(), otherRecord.getPickupAddress()) &&
                 Objects.equals(bookingRecord.getDropAddress(), otherRecord.getDropAddress()) &&
                 Objects.equals(bookingRecord.getAsap(), otherRecord.getAsap());
