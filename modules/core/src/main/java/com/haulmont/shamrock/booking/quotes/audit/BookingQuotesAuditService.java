@@ -308,20 +308,10 @@ public class BookingQuotesAuditService {
                 .max(Comparator.comparing(ProductQuotationRecord::getCreateDate));
 
         if (lastQuote.isPresent()) {
-            long waitNextEventMilliseconds = configuration.getStorageWaitNextEventNonCommitted().getMillis();
-
             ProductQuotationRecord lastRecord = lastQuote.get();
             String transactionId = lastRecord.getTransactionId();
-            List<ProductQuotationRecord> recordsBatch = null;
-            if (StringUtils.isNotBlank(transactionId)) {
-                recordsBatch = quotes.stream()
-                        .filter(qrt -> Objects.equals(qrt.getTransactionId(), transactionId))
-                        .collect(Collectors.toList());
-                Optional<ProductQuotationRecord> bestQuoteInTransaction =
-                        recordsBatch.stream()
-                                .min(Comparator.comparing(qrt -> qrt.getResponseTime().toStandardSeconds()));
-                lastRecord = bestQuoteInTransaction.orElseGet(lastQuote::get);
-            }
+
+            long waitNextEventMilliseconds = configuration.getStorageWaitNextEventNonCommitted().getMillis();
 
             if ((lastRecord.getCreateDate().getMillis() + waitNextEventMilliseconds) < System.currentTimeMillis()) {
                 if (quotationRepository.bookingExists(bookingId)) {
@@ -329,26 +319,69 @@ public class BookingQuotesAuditService {
                     removeFromIntermediateStorage(bookingId);
                     return;
                 }
-                if (lastRecord.getBookingDate() == null) {
-                    Optional<DateTime> bookingDate = quotes.stream()
-                            .sorted(Comparator.comparing(ProductQuotationRecord::getCreateDate).reversed())
-                            .filter(qrt -> qrt.getBookingDate() != null)
-                            .findFirst()
-                            .map(ProductQuotationRecord::getBookingDate);
-                    bookingDate.ifPresent(lastRecord::setBookingDate);
-                }
-                List<ProductQuotationRecord> quotations = recordsBatch != null
-                        ? recordsBatch : Collections.singletonList(lastRecord);
 
+                List<ProductQuotationRecord> leadTimeRecords = quotes.stream()
+                        .filter(quote -> quote.getEventType() == EventType.LEAD_TIME_QUOTED)
+                        .collect(Collectors.toList());
                 List<ProductQuotationRecord> priceRecords = quotes.stream()
                         .filter(quote -> quote.getEventType() == EventType.BOOKING_PRICED)
                         .collect(Collectors.toList());
                 List<ProductQuotationRecord> restrictionRecords = quotes.stream()
                         .filter(quote -> RESTRICTION_EVENT_TYPES.contains(quote.getEventType()))
                         .collect(Collectors.toList());
+
+                List<ProductQuotationRecord> recordsBatch = null;
+                if (StringUtils.isNotBlank(transactionId)) {
+                    recordsBatch = quotes.stream()
+                            .filter(quote -> Objects.equals(quote.getTransactionId(), transactionId))
+                            .collect(Collectors.toList());
+                }
+
+                if (recordsBatch == null || recordsBatch.size() < 2) {
+                    //try searching for not too old batch with more than 1 quote
+                    long batchMaxAgeMilliseconds = configuration.getStorageBatchMaxAge().getMillis();
+
+                    Map<String, List<ProductQuotationRecord>> leadTimeQuotedBatches = leadTimeRecords.stream()
+                            .filter(quote -> StringUtils.isNotBlank(quote.getTransactionId()))
+                            .collect(Collectors.groupingBy(ProductQuotationRecord::getTransactionId));
+                    Optional<List<ProductQuotationRecord>> lastAppropriateBatch = leadTimeRecords.stream()
+                            .filter(quote -> quote.getCreateDate().getMillis() + batchMaxAgeMilliseconds >
+                                    lastRecord.getCreateDate().getMillis())
+                            .filter(quote -> StringUtils.isNotBlank(quote.getTransactionId()))
+                            .filter(quote -> leadTimeQuotedBatches.get(quote.getTransactionId()).size() > 1)
+                            .max(Comparator.comparing(ProductQuotationRecord::getCreateDate))
+                            .map(foundRecord -> leadTimeQuotedBatches.get(foundRecord.getTransactionId()));
+
+                    if (lastAppropriateBatch.isPresent()) {
+                        recordsBatch = lastAppropriateBatch.get();
+                    }
+                }
+
+                List<ProductQuotationRecord> quotations = recordsBatch != null
+                        ? recordsBatch : Collections.singletonList(lastRecord);
+
                 for (ProductQuotationRecord productQuote : quotations) {
                     addPriceInfo(productQuote, priceRecords);
                     addRestrictionInfo(productQuote, restrictionRecords);
+                }
+
+                //if booking date is null for some reason, take it from some other quote
+                ProductQuotationRecord quotationRecord = quotations.get(0);
+                if (quotationRecord.getBookingDate() == null) {
+                    //first try to find it in the same batch
+                    Optional<DateTime> bookingDate = quotations.stream()
+                            .filter(qrt -> qrt.getBookingDate() != null)
+                            .findFirst()
+                            .map(ProductQuotationRecord::getBookingDate);
+                    //otherwise try searching from all the quotes
+                    if (bookingDate.isEmpty()) {
+                        bookingDate = quotes.stream()
+                                .sorted(Comparator.comparing(ProductQuotationRecord::getCreateDate).reversed())
+                                .filter(qrt -> qrt.getBookingDate() != null)
+                                .findFirst()
+                                .map(ProductQuotationRecord::getBookingDate);
+                    }
+                    bookingDate.ifPresent(quotationRecord::setBookingDate);
                 }
 
                 logger.debug("Saving last quote for booking (id: {}) to the database", bookingId);
