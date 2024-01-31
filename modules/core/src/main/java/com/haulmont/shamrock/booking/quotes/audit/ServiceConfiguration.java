@@ -2,6 +2,7 @@ package com.haulmont.shamrock.booking.quotes.audit;
 
 import com.haulmont.monaco.config.annotations.Config;
 import com.haulmont.monaco.config.annotations.Property;
+import org.joda.time.Duration;
 import org.picocontainer.annotations.Component;
 
 @Config
@@ -24,15 +25,18 @@ public interface ServiceConfiguration {
     @Property("caches.client-grade.expire-after.minutes")
     Long getClientGradeCacheElementExpireAfterMinutes();
 
-    @Property("storage.wait-next-event.minutes")
-    Long getStorageWaitNextEventMinutes();
+    @Property("storage.wait-next-event.committed")
+    Duration getStorageWaitNextEventCommitted();
 
-    @Property("storage.expire-after.minutes")
-    Long getStorageExpireAfterMinutes();
+    @Property("storage.wait-next-event.non-committed")
+    Duration getStorageWaitNextEventNonCommitted();
 
-    @Property("storage.batch-max-age.seconds")
-    Long getStorageBatchMaxAgeSeconds();
+    @Property("storage.expire-after")
+    Duration getStorageExpireAfter();
 
-    @Property("db.clean.older-than.days")
-    Integer getDbCleanOlderThanDays();
+    @Property("storage.batch-max-age")
+    Duration getStorageBatchMaxAge();
+
+    @Property("db.clean.older-than")
+    Duration getDbCleanOlderThan();
 }

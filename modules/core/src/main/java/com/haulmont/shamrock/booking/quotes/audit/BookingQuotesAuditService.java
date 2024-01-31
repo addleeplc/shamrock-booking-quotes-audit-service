@@ -25,6 +25,7 @@ import org.picocontainer.annotations.Inject;
 import org.slf4j.Logger;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -67,7 +68,7 @@ public class BookingQuotesAuditService {
         ProductQuotationRecord record = productQuotationRecordConverter.createProductQuotationRecord(
                 booking, eventDate, EventType.BOOKING_CREATED);
 
-        saveBookingRecord(record);
+        saveToIntermediateStorage(record);
     }
 
     public void processBookingAmended(Booking booking, DateTime eventDate) {
@@ -78,7 +79,7 @@ public class BookingQuotesAuditService {
         ProductQuotationRecord record = productQuotationRecordConverter.createProductQuotationRecord(
                 booking, eventDate, EventType.BOOKING_AMENDED);
 
-        saveBookingRecord(record);
+        saveToIntermediateStorage(record);
     }
 
     public void processBookingPriced(Booking booking, DateTime eventDate, BigDecimal totalCharged, String currencyCode) {
@@ -178,8 +179,8 @@ public class BookingQuotesAuditService {
         productQuotationRecordStorage.put(record.getBookingId(), record);
     }
 
-    private void removeFromIntermediateStorage(ProductQuotationRecord record) {
-        productQuotationRecordStorage.remove(record.getBookingId());
+    private void removeFromIntermediateStorage(UUID bookingId) {
+        productQuotationRecordStorage.remove(bookingId);
     }
 
     /**
@@ -189,38 +190,33 @@ public class BookingQuotesAuditService {
      * @param bookingRecord record related to created/amended booking
      */
     private void saveBookingRecord(ProductQuotationRecord bookingRecord) {
-        logger.debug("Checking booking (id: {}) in the intermediate storage", bookingRecord.getBookingId());
-        List<ProductQuotationRecord> quotes = productQuotationRecordStorage.get(bookingRecord.getBookingId());
+        UUID bookingId = bookingRecord.getBookingId();
+        List<ProductQuotationRecord> quotes = new ArrayList<>();
+        for (ProductQuotationRecord quote : productQuotationRecordStorage.getAndRemove(bookingId)) {
+            if (quote.getEventDate().getMillis() > bookingRecord.getEventDate().getMillis()) {
+                productQuotationRecordStorage.put(bookingId, quote);
+            } else {
+                quotes.add(quote);
+            }
+        }
 
-        //add restriction info
+        List<ProductQuotationRecord> leadTimeRecords = quotes.stream()
+                .filter(quote -> quote.getEventType() == EventType.LEAD_TIME_QUOTED)
+                .collect(Collectors.toList());
+
         List<ProductQuotationRecord> restrictionRecords = quotes.stream()
                 .filter(quote -> RESTRICTION_EVENT_TYPES.contains(quote.getEventType()))
                 .collect(Collectors.toList());
 
-        restrictionRecords.stream()
-                .filter(quote -> isRelevantForBooking(bookingRecord, quote))
-                .max(Comparator.comparing(ProductQuotationRecord::getCreateDate))
-                .ifPresent(restriction -> {
-                    bookingRecord.setRestrictionCode(restriction.getRestrictionCode());
-                    bookingRecord.setRestrictionMessage(restriction.getRestrictionMessage());
-                    bookingRecord.setPublicEventId(restriction.getPublicEventId());
-                });
-
-        //add price info
         List<ProductQuotationRecord> priceRecords = quotes.stream()
                 .filter(quote -> quote.getEventType() == EventType.BOOKING_PRICED)
                 .collect(Collectors.toList());
-        priceRecords.stream()
-                .filter(quote -> isRelevantForBooking(bookingRecord, quote))
-                .max(Comparator.comparing(ProductQuotationRecord::getCreateDate))
-                .ifPresent(price -> {
-                    bookingRecord.setTotalCharged(price.getTotalCharged());
-                    bookingRecord.setCurrencyCode(price.getCurrencyCode());
-                });
+
+        addPriceInfo(bookingRecord, priceRecords);
+        addRestrictionInfo(bookingRecord, restrictionRecords);
 
         //collect last quotation
-        Optional<ProductQuotationRecord> lastQuote = quotes.stream()
-                .filter(quote -> quote.getEventType() == EventType.LEAD_TIME_QUOTED)
+        Optional<ProductQuotationRecord> lastQuote = leadTimeRecords.stream()
                 .filter(quote -> isRelevantForBooking(bookingRecord, quote))
                 .max(Comparator.comparing(ProductQuotationRecord::getCreateDate));
 
@@ -233,20 +229,19 @@ public class BookingQuotesAuditService {
 
                 if (recordsBatch.size() < 2) {
                     //try searching for not too old batch with the chosen product and more than 1 quote
-                    long batchMaxAgeMilliseconds = configuration.getStorageBatchMaxAgeSeconds() * 1000;
+                    long batchMaxAgeMilliseconds = configuration.getStorageBatchMaxAge().getMillis();
 
-                    Map<String, List<ProductQuotationRecord>> leadTimeQuotedBatches = quotes.stream()
-                            .filter(quote -> quote.getEventType() == EventType.LEAD_TIME_QUOTED)
+                    Map<String, List<ProductQuotationRecord>> leadTimeQuotedBatches = leadTimeRecords.stream()
                             .filter(quote -> StringUtils.isNotBlank(quote.getTransactionId()))
                             .collect(Collectors.groupingBy(ProductQuotationRecord::getTransactionId));
-                    Optional<List<ProductQuotationRecord>> lastAppropriateBatch = quotes.stream()
-                            .filter(quote -> quote.getEventType() == EventType.LEAD_TIME_QUOTED)
+                    Optional<List<ProductQuotationRecord>> lastAppropriateBatch = leadTimeRecords.stream()
                             .filter(quote -> isRelevantForBooking(bookingRecord, quote))
-                            .filter(quote -> quote.getCreateDate().getMillis() + batchMaxAgeMilliseconds < System.currentTimeMillis())
+                            .filter(quote -> quote.getCreateDate().getMillis() + batchMaxAgeMilliseconds >
+                                    bookingRecord.getCreateDate().getMillis())
                             .filter(quote -> StringUtils.isNotBlank(quote.getTransactionId()))
                             .filter(quote -> leadTimeQuotedBatches.get(quote.getTransactionId()).size() > 1)
                             .max(Comparator.comparing(ProductQuotationRecord::getCreateDate))
-                            .map(productQuotationRecord -> leadTimeQuotedBatches.get(productQuotationRecord.getTransactionId()));
+                            .map(foundRecord -> leadTimeQuotedBatches.get(foundRecord.getTransactionId()));
 
                     if (lastAppropriateBatch.isPresent()) {
                         recordsBatch = lastAppropriateBatch.get();
@@ -254,24 +249,11 @@ public class BookingQuotesAuditService {
                 }
 
                 for (ProductQuotationRecord productQuote : recordsBatch) {
-                    priceRecords.stream()
-                            .filter(quote -> isRelevantForBooking(productQuote, quote))
-                            .max(Comparator.comparing(ProductQuotationRecord::getCreateDate))
-                            .ifPresent(record -> {
-                                productQuote.setTotalCharged(record.getTotalCharged());
-                                productQuote.setCurrencyCode(record.getCurrencyCode());
-                            });
-                    restrictionRecords.stream()
-                            .filter(quote -> isRelevantForBooking(productQuote, quote))
-                            .max(Comparator.comparing(ProductQuotationRecord::getCreateDate))
-                            .ifPresent(restriction -> {
-                                productQuote.setRestrictionCode(restriction.getRestrictionCode());
-                                productQuote.setRestrictionMessage(restriction.getRestrictionMessage());
-                                productQuote.setPublicEventId(restriction.getPublicEventId());
-                            });
+                    addPriceInfo(productQuote, priceRecords);
+                    addRestrictionInfo(productQuote, restrictionRecords);
                 }
                 logger.debug("Saving booking (id: {}, number: {}) to the database",
-                        bookingRecord.getBookingId(), bookingRecord.getBookingNumber());
+                        bookingId, bookingRecord.getBookingNumber());
                 persistRecordsAsQuotation(recordsBatch);
 
                 //if responseTime is null, fill it with the best quote's delay in the recent batch
@@ -281,7 +263,6 @@ public class BookingQuotesAuditService {
                     ProductQuotationRecord bestQuote = bestQuoteInTransaction.orElseGet(lastQuote::get);
                     bookingRecord.setResponseTime(bestQuote.getResponseTime());
                 }
-                removeFromIntermediateStorage(bookingRecord);
             }
         } else {
             persistRecordsAsQuotation(Collections.singletonList(bookingRecord));
@@ -305,11 +286,29 @@ public class BookingQuotesAuditService {
         logger.debug("Checking booking (id: {}) in the intermediate storage", bookingId);
         List<ProductQuotationRecord> quotes = productQuotationRecordStorage.get(bookingId);
 
+        List<ProductQuotationRecord> bookingRecords = quotes.stream()
+                .filter(quote -> quote.getEventType() == EventType.BOOKING_CREATED ||
+                        quote.getEventType() == EventType.BOOKING_AMENDED)
+                .collect(Collectors.toList());
+        if (!bookingRecords.isEmpty()) {
+            long bookingCreatedTimeoutMillis = configuration.getStorageWaitNextEventCommitted().getMillis();
+
+            boolean bookingIsReadyToBeSaved = bookingRecords.stream()
+                    .allMatch(record -> record.getCreateDate().getMillis() + bookingCreatedTimeoutMillis
+                            < System.currentTimeMillis());
+            if (bookingIsReadyToBeSaved) {
+                bookingRecords.stream()
+                        .max(Comparator.comparing(ProductQuotationRecord::getCreateDate))
+                        .ifPresent(this::saveBookingRecord);
+            }
+            return;
+        }
+
         Optional<ProductQuotationRecord> lastQuote = quotes.stream()
                 .max(Comparator.comparing(ProductQuotationRecord::getCreateDate));
 
         if (lastQuote.isPresent()) {
-            long waitNextEventMilliseconds = configuration.getStorageWaitNextEventMinutes() * 60 * 1000;
+            long waitNextEventMilliseconds = configuration.getStorageWaitNextEventNonCommitted().getMillis();
 
             ProductQuotationRecord lastRecord = lastQuote.get();
             String transactionId = lastRecord.getTransactionId();
@@ -325,6 +324,11 @@ public class BookingQuotesAuditService {
             }
 
             if ((lastRecord.getCreateDate().getMillis() + waitNextEventMilliseconds) < System.currentTimeMillis()) {
+                if (quotationRepository.bookingExists(bookingId)) {
+                    logger.debug("Skipped saving last quotes for booking (id: {}) to the database", bookingId);
+                    removeFromIntermediateStorage(bookingId);
+                    return;
+                }
                 if (lastRecord.getBookingDate() == null) {
                     Optional<DateTime> bookingDate = quotes.stream()
                             .sorted(Comparator.comparing(ProductQuotationRecord::getCreateDate).reversed())
@@ -336,25 +340,43 @@ public class BookingQuotesAuditService {
                 List<ProductQuotationRecord> quotations = recordsBatch != null
                         ? recordsBatch : Collections.singletonList(lastRecord);
 
-                //add price info
                 List<ProductQuotationRecord> priceRecords = quotes.stream()
                         .filter(quote -> quote.getEventType() == EventType.BOOKING_PRICED)
                         .collect(Collectors.toList());
+                List<ProductQuotationRecord> restrictionRecords = quotes.stream()
+                        .filter(quote -> RESTRICTION_EVENT_TYPES.contains(quote.getEventType()))
+                        .collect(Collectors.toList());
                 for (ProductQuotationRecord productQuote : quotations) {
-                    priceRecords.stream()
-                            .filter(quote -> isRelevantForBooking(productQuote, quote))
-                            .max(Comparator.comparing(ProductQuotationRecord::getCreateDate))
-                            .ifPresent(record -> {
-                                productQuote.setTotalCharged(record.getTotalCharged());
-                                productQuote.setCurrencyCode(record.getCurrencyCode());
-                            });
+                    addPriceInfo(productQuote, priceRecords);
+                    addRestrictionInfo(productQuote, restrictionRecords);
                 }
 
                 logger.debug("Saving last quote for booking (id: {}) to the database", bookingId);
                 persistRecordsAsQuotation(quotations);
-                removeFromIntermediateStorage(lastRecord);
+                removeFromIntermediateStorage(bookingId);
             }
         }
+    }
+
+    private void addPriceInfo(ProductQuotationRecord record, List<ProductQuotationRecord> priceRecords) {
+        priceRecords.stream()
+                .filter(quote -> isRelevantForBooking(record, quote))
+                .max(Comparator.comparing(ProductQuotationRecord::getCreateDate))
+                .ifPresent(priceRecord -> {
+                    record.setTotalCharged(priceRecord.getTotalCharged());
+                    record.setCurrencyCode(priceRecord.getCurrencyCode());
+                });
+    }
+
+    private void addRestrictionInfo(ProductQuotationRecord record, List<ProductQuotationRecord> restrictionRecords) {
+        restrictionRecords.stream()
+                .filter(quote -> isRelevantForBooking(record, quote))
+                .max(Comparator.comparing(ProductQuotationRecord::getCreateDate))
+                .ifPresent(restriction -> {
+                    record.setRestrictionCode(restriction.getRestrictionCode());
+                    record.setRestrictionMessage(restriction.getRestrictionMessage());
+                    record.setPublicEventId(restriction.getPublicEventId());
+                });
     }
 
     private void persistRecordsAsQuotation(List<ProductQuotationRecord> records) {

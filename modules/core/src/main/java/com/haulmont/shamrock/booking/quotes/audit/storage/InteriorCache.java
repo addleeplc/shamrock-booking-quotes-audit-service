@@ -64,6 +64,13 @@ public class InteriorCache implements ProductQuotationRecordStorage {
     }
 
     @Override
+    public List<ProductQuotationRecord> getAndRemove(UUID bookingId) {
+        List<ProductQuotationRecord> records = get(bookingId);
+        remove(bookingId);
+        return records;
+    }
+
+    @Override
     public List<UUID> keys() {
         checkStorage();
         Set<StorageKey> keys = storage.keySet();
@@ -71,7 +78,7 @@ public class InteriorCache implements ProductQuotationRecordStorage {
     }
 
     private void checkStorage() {
-        long removeAfter = configuration.getStorageExpireAfterMinutes() * 60 * 1000;
+        long removeAfter = configuration.getStorageExpireAfter().getMillis();
         long now = System.currentTimeMillis();
 
         List<StorageKey> keysForRemove = new ArrayList<>();

@@ -1,8 +1,11 @@
 package com.haulmont.shamrock.booking.quotes.audit;
 
+import com.haulmont.bali.commons.beanutils.converters.JodaDurationConverter;
 import com.haulmont.monaco.annotations.AfterStart;
 import com.haulmont.monaco.annotations.Module;
 import com.haulmont.monaco.container.ModuleLoader;
+import org.apache.commons.beanutils.ConvertUtils;
+import org.joda.time.Duration;
 
 @Module(name = "shamrock-booking-quotes-audit-service-module",
         depends = {
@@ -21,6 +24,7 @@ import com.haulmont.monaco.container.ModuleLoader;
 public class ShamrockBookingQuotesAuditServiceModule extends ModuleLoader {
     public ShamrockBookingQuotesAuditServiceModule() {
         super();
+        ConvertUtils.register(new JodaDurationConverter(), Duration.class);
         packages("com.haulmont.shamrock.booking.quotes.audit");
     }
 

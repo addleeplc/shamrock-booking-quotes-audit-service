@@ -53,6 +53,36 @@ public class QuotationRepository {
         }
     }
 
+    public boolean bookingExists(UUID bookingId) {
+        if (bookingId == null) return false;
+        try {
+            return new BookingExistsCommand(bookingId).execute();
+        }  catch (Throwable t) {
+            logger.error("Fail to query booking (id: {})", bookingId);
+            return false;
+        }
+    }
+
+    private final class BookingExistsCommand extends MyBatisCommand<Boolean> {
+        private final UUID bookingId;
+
+        public BookingExistsCommand(UUID bookingId) {
+            super(sessionFactory);
+            this.bookingId = bookingId;
+        }
+
+        @Override
+        protected Boolean __execute(SqlSession sqlSession) {
+            return sqlSession.selectOne(MYBATIS_NAMESPACE_PREFIX + "." + getName(),
+                    Map.of("bookingId", bookingId));
+        }
+
+        @Override
+        protected String getName() {
+            return "bookingExists";
+        }
+    }
+
     private final class QuotationExistsCommand extends MyBatisCommand<Boolean> {
         private final UUID quotationId;
 

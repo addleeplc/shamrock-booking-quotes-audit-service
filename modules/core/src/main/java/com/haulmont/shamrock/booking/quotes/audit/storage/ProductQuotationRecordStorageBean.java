@@ -38,6 +38,11 @@ public class ProductQuotationRecordStorageBean implements ProductQuotationRecord
     }
 
     @Override
+    public List<ProductQuotationRecord> getAndRemove(UUID bookingId) {
+        return storage.getAndRemove(bookingId);
+    }
+
+    @Override
     public void put(UUID bookingId, ProductQuotationRecord productQuotationRecord) {
         storage.put(bookingId, productQuotationRecord);
     }

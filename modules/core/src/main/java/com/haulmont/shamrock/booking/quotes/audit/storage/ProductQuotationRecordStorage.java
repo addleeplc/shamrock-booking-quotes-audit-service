@@ -18,6 +18,8 @@ public interface ProductQuotationRecordStorage {
 
     List<ProductQuotationRecord> get(UUID bookingId);
 
+    List<ProductQuotationRecord> getAndRemove(UUID bookingId);
+
     void put(UUID bookingId, ProductQuotationRecord productQuotationRecord);
 
     void remove(UUID bookingId);

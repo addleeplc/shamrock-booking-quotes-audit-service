@@ -48,6 +48,21 @@ public class RedisCache implements ProductQuotationRecordStorage {
         return result;
     }
 
+    public List<ProductQuotationRecord> getAndRemove(UUID bookingId) {
+        Redis<String, String> redis = getRedis();
+
+        String key = keyCodec.encode(bookingId);
+        List<String> rawValues = redis.lrange(key, 0L, -1L);
+        redis.ltrim(key, rawValues.size(), -1L);
+
+        List<ProductQuotationRecord> result = new ArrayList<>();
+        for (String rawValue : rawValues) {
+            result.addAll(valueCodec.decode(rawValue));
+        }
+
+        return result;
+    }
+
     @Override
     public void put(UUID bookingId, ProductQuotationRecord record) {
         Redis<String, String> redis = getRedis();
@@ -55,7 +70,7 @@ public class RedisCache implements ProductQuotationRecordStorage {
         String key = keyCodec.encode(bookingId);
         String strValue = valueCodec.encode(Collections.singletonList(record));
         redis.lpush(key, strValue);
-        redis.expire(key, configuration.getStorageExpireAfterMinutes() * 60);
+        redis.expire(key, configuration.getStorageExpireAfter().getStandardSeconds());
     }
 
     @Override

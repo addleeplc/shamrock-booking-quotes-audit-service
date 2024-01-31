@@ -178,6 +178,10 @@
         select exists(select 1 from quotation where id = cast(#{quotationId, javaType=java.util.UUID, jdbcType=OTHER} as uuid))
     </select>
 
+    <select id="bookingExists" resultType="boolean">
+        select exists(select 1 from booking where id = cast(#{bookingId, javaType=java.util.UUID, jdbcType=OTHER} as uuid))
+    </select>
+
     <delete id="removeOldQuotations">
         delete from quotation where event_date &lt; #{till}
     </delete>
