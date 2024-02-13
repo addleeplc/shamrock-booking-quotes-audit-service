@@ -57,6 +57,9 @@ public class Booking implements Serializable {
     @JsonProperty("destination_unknown")
     private Boolean destinationUnknown;
 
+    @JsonProperty("wait_and_return")
+    private Boolean waitAndReturn;
+
     @JsonProperty("payment_type")
     private String paymentType;
 
@@ -169,6 +172,14 @@ public class Booking implements Serializable {
 
     public void setDestinationUnknown(Boolean destinationUnknown) {
         this.destinationUnknown = destinationUnknown;
+    }
+
+    public Boolean getWaitAndReturn() {
+        return waitAndReturn;
+    }
+
+    public void setWaitAndReturn(Boolean waitAndReturn) {
+        this.waitAndReturn = waitAndReturn;
     }
 
     public String getPaymentType() {

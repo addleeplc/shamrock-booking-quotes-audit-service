@@ -16,6 +16,7 @@ import com.haulmont.shamrock.booking.quotes.audit.model.booking.Booking;
 import com.haulmont.shamrock.booking.quotes.audit.model.booking.Stop;
 import com.haulmont.shamrock.booking.quotes.audit.model.product.Product;
 import com.haulmont.shamrock.booking.quotes.audit.model.shamrock.LeadTimeSource;
+import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Period;
@@ -142,14 +143,23 @@ public class ProductQuotationRecordConverter {
         record.setClientGrade(getClientGrade(booking));
         record.setProductId(getProductId(booking));
         record.setProductCode(getProductCode(booking));
-        record.setPickupAddress(getPickupAddress(booking));
-        record.setPickupPostcode(getPickupPostcode(booking));
-        record.setPickupLocationLat(getPickupLat(booking));
-        record.setPickupLocationLon(getPickupLon(booking));
-        record.setDropAddress(getDropAddress(booking));
-        record.setDropPostcode(getDropPostcode(booking));
-        record.setDropLocationLat(getDropLat(booking));
-        record.setDropLocationLon(getDropLon(booking));
+
+        Stop pickupStop = getPickupStop(booking);
+        if (pickupStop != null) {
+            record.setPickupAddress(getFormattedAddress(pickupStop));
+            record.setPickupPostcode(getPostcode(pickupStop));
+            record.setPickupLocationLat(getLat(pickupStop));
+            record.setPickupLocationLon(getLon(pickupStop));
+        }
+
+        Stop dropStop = getDropStop(booking);
+        if (dropStop != null) {
+            record.setDropAddress(getFormattedAddress(dropStop));
+            record.setDropPostcode(getPostcode(dropStop));
+            record.setDropLocationLat(getLat(dropStop));
+            record.setDropLocationLon(getLon(dropStop));
+        }
+
         record.setResponseTime(getResponseTime(booking, timeEstimate));
         record.setLeadTimeSource(leadTimeSource);
         record.setRestrictionCode(restrictionCode);
@@ -210,82 +220,52 @@ public class ProductQuotationRecordConverter {
         return Optional.ofNullable(booking.getProduct()).map(Product::getCode).orElse(null);
     }
 
-    private String getPickupAddress(Booking booking) {
-        if (booking.getStops() != null && !booking.getStops().isEmpty()) {
-            Stop stop = booking.getStops().get(0);
-            return stop.getFormattedAddress();
-        }
-        return null;
-    }
-
-    private String getPickupPostcode(Booking booking) {
-        if (booking.getStops() != null && !booking.getStops().isEmpty()) {
-            Stop stop = booking.getStops().get(0);
-            if (stop.getAddressComponents() != null) {
-                return stop.getAddressComponents().getPostalCode();
-            }
-        }
-        return null;
-    }
-
-    private Double getPickupLat(Booking booking) {
-        if (booking.getStops() != null && !booking.getStops().isEmpty()) {
-            Stop stop = booking.getStops().get(0);
-            if (stop.getLocation() != null) {
-                return stop.getLocation().getLat();
-            }
-        }
-        return null;
-    }
-
-    private Double getPickupLon(Booking booking) {
-        if (booking.getStops() != null && !booking.getStops().isEmpty()) {
-            Stop stop = booking.getStops().get(0);
-            if (stop.getLocation() != null) {
-                return stop.getLocation().getLon();
-            }
-        }
-        return null;
-    }
-
-    private String getDropAddress(Booking booking) {
+    private Stop getPickupStop(Booking booking) {
         List<Stop> stops = booking.getStops();
         if (stops != null && !stops.isEmpty()) {
-            Stop stop = stops.get(stops.size() - 1);
-            return stop.getFormattedAddress();
+            return stops.get(0);
         }
         return null;
     }
 
-    private String getDropPostcode(Booking booking) {
+    private Stop getDropStop(Booking booking) {
+        if (BooleanUtils.isTrue(booking.getDestinationUnknown())
+                || BooleanUtils.isTrue(booking.getAsDirected())) {
+            return null;
+        }
+
         List<Stop> stops = booking.getStops();
+
         if (stops != null && !stops.isEmpty()) {
-            Stop stop = stops.get(stops.size() - 1);
-            if (stop.getAddressComponents() != null) {
-                return stop.getAddressComponents().getPostalCode();
+            if (BooleanUtils.isTrue(booking.getWaitAndReturn())) {
+                return stops.get(0);
             }
+            return stops.get(stops.size() - 1);
         }
         return null;
     }
 
-    private Double getDropLat(Booking booking) {
-        List<Stop> stops = booking.getStops();
-        if (stops != null && !stops.isEmpty()) {
-            Stop stop = stops.get(stops.size() - 1);
-            if (stop.getLocation() != null) {
-                return stop.getLocation().getLat();
-            }
+    private String getFormattedAddress(Stop stop) {
+        return stop.getFormattedAddress();
+    }
+
+    private String getPostcode(Stop stop) {
+        if (stop.getAddressComponents() != null) {
+            return stop.getAddressComponents().getPostalCode();
         }
         return null;
     }
 
-    private Double getDropLon(Booking booking) {
-        List<Stop> stops = booking.getStops();
-        if (stops != null && !stops.isEmpty()) {
-            Stop stop = stops.get(stops.size() - 1);
-            if (stop.getLocation() != null) {
-                return stop.getLocation().getLon();
-            }
+    private Double getLat(Stop stop) {
+        if (stop.getLocation() != null) {
+            return stop.getLocation().getLat();
+        }
+        return null;
+    }
+
+    private Double getLon(Stop stop) {
+        if (stop.getLocation() != null) {
+            return stop.getLocation().getLon();
         }
         return null;
     }
