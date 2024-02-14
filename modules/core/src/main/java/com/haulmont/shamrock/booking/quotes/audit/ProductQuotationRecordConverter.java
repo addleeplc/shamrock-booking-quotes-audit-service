@@ -240,7 +240,9 @@ public class ProductQuotationRecordConverter {
             if (BooleanUtils.isTrue(booking.getWaitAndReturn())) {
                 return stops.get(0);
             }
-            return stops.get(stops.size() - 1);
+            if (stops.size() > 1) {
+                return stops.get(stops.size() - 1);
+            }
         }
         return null;
     }
