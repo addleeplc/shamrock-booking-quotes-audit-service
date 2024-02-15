@@ -256,13 +256,18 @@ public class BookingQuotesAuditService {
                         bookingId, bookingRecord.getBookingNumber());
                 persistRecordsAsQuotation(recordsBatch);
 
-                //if responseTime is null, fill it with the best quote's delay in the recent batch
+                ProductQuotationRecord productQuote = recordsBatch.stream()
+                        .filter(record -> Objects.equals(record.getProductId(), bookingRecord.getProductId()))
+                        .findFirst()
+                        .orElseGet(lastQuote::get);
+
+                //if responseTime is null, fill it with the product quote's delay in the recent batch
                 if (bookingRecord.getResponseTime() == null) {
-                    Optional<ProductQuotationRecord> bestQuoteInTransaction =
-                            recordsBatch.stream().min(Comparator.comparing(qrt -> qrt.getResponseTime().toStandardSeconds()));
-                    ProductQuotationRecord bestQuote = bestQuoteInTransaction.orElseGet(lastQuote::get);
-                    bookingRecord.setResponseTime(bestQuote.getResponseTime());
-                    bookingRecord.setLeadTimeSource(bestQuote.getLeadTimeSource());
+                    bookingRecord.setResponseTime(productQuote.getResponseTime());
+                }
+                if (bookingRecord.getLeadTimeSource() == null
+                        && Objects.equals(bookingRecord.getResponseTime(), productQuote.getResponseTime())) {
+                    bookingRecord.setLeadTimeSource(productQuote.getLeadTimeSource());
                 }
             }
         } else {
