@@ -329,12 +329,9 @@ public class BookingQuotesAuditService {
                 .max(Comparator.comparing(ProductQuotationRecord::getCreateDate));
 
         if (lastQuote.isPresent()) {
-            ProductQuotationRecord lastRecord = lastQuote.get();
-            String transactionId = lastRecord.getTransactionId();
-
             long waitNextEventMilliseconds = configuration.getStorageWaitNextEventNonCommitted().getMillis();
 
-            if ((lastRecord.getCreateDate().getMillis() + waitNextEventMilliseconds) < System.currentTimeMillis()) {
+            if ((lastQuote.get().getCreateDate().getMillis() + waitNextEventMilliseconds) < System.currentTimeMillis()) {
                 if (quotationRepository.bookingExists(bookingId)) {
                     logger.debug("Skipped saving last quotes for booking (id: {}) to the database", bookingId);
                     removeFromIntermediateStorage(bookingId);
@@ -348,7 +345,27 @@ public class BookingQuotesAuditService {
                         .filter(quote -> RESTRICTION_EVENT_TYPES.contains(quote.getEventType()))
                         .collect(Collectors.toList());
 
+                ProductQuotationRecord lastRecord;
+                Boolean asap;
+
+                //in some cases last quote comes with asap = true, although in reality it was a prebook job
+                //to check this we examine the last price quote
+                Optional<ProductQuotationRecord> lastPriceQuote = priceRecords.stream()
+                        .max(Comparator.comparing(ProductQuotationRecord::getCreateDate));
+                if (lastPriceQuote.isPresent()
+                        && !Objects.equals(lastPriceQuote.get().getAsap(), lastQuote.get().getAsap())) {
+                    asap = lastPriceQuote.get().getAsap();
+                    lastRecord = leadTimeRecords.stream()
+                            .filter(quote -> Objects.equals(quote.getAsap(), asap))
+                            .max(Comparator.comparing(ProductQuotationRecord::getCreateDate))
+                            .orElseGet(lastQuote::get);
+                } else {
+                    lastRecord = lastQuote.get();
+                    asap = lastRecord.getAsap();
+                }
+
                 List<ProductQuotationRecord> recordsBatch = null;
+                String transactionId = lastRecord.getTransactionId();
                 if (StringUtils.isNotBlank(transactionId)) {
                     recordsBatch = quotes.stream()
                             .filter(quote -> Objects.equals(quote.getTransactionId(), transactionId))
@@ -365,6 +382,7 @@ public class BookingQuotesAuditService {
                     Optional<List<ProductQuotationRecord>> lastAppropriateBatch = leadTimeRecords.stream()
                             .filter(quote -> quote.getCreateDate().getMillis() + batchMaxAgeMilliseconds >
                                     lastRecord.getCreateDate().getMillis())
+                            .filter(quote -> Objects.equals(quote.getAsap(), asap))
                             .filter(quote -> StringUtils.isNotBlank(quote.getTransactionId()))
                             .filter(quote -> leadTimeQuotedBatches.get(quote.getTransactionId()).size() > 1)
                             .max(Comparator.comparing(ProductQuotationRecord::getCreateDate))
