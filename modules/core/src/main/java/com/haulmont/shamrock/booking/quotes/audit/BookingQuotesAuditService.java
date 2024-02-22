@@ -32,7 +32,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.BinaryOperator;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Component
@@ -252,6 +255,8 @@ public class BookingQuotesAuditService {
                     addPriceInfo(productQuote, priceRecords);
                     addRestrictionInfo(productQuote, restrictionRecords);
                 }
+                addMissingProducts(recordsBatch, priceRecords, restrictionRecords);
+
                 logger.debug("Saving booking (id: {}, number: {}) to the database",
                         bookingId, bookingRecord.getBookingNumber());
                 persistRecordsAsQuotation(recordsBatch);
@@ -393,19 +398,21 @@ public class BookingQuotesAuditService {
                     }
                 }
 
-                List<ProductQuotationRecord> quotations = recordsBatch != null
+                List<ProductQuotationRecord> productQuotations = recordsBatch != null
                         ? recordsBatch : Collections.singletonList(lastRecord);
 
-                for (ProductQuotationRecord productQuote : quotations) {
+                for (ProductQuotationRecord productQuote : productQuotations) {
                     addPriceInfo(productQuote, priceRecords);
                     addRestrictionInfo(productQuote, restrictionRecords);
                 }
 
+                addMissingProducts(productQuotations, priceRecords, restrictionRecords);
+
                 //if booking date is null for some reason, take it from some other quote
-                ProductQuotationRecord quotationRecord = quotations.get(0);
+                ProductQuotationRecord quotationRecord = productQuotations.get(0);
                 if (quotationRecord.getBookingDate() == null) {
                     //first try to find it in the same batch
-                    Optional<DateTime> bookingDate = quotations.stream()
+                    Optional<DateTime> bookingDate = productQuotations.stream()
                             .filter(qrt -> qrt.getBookingDate() != null)
                             .findFirst()
                             .map(ProductQuotationRecord::getBookingDate);
@@ -421,10 +428,52 @@ public class BookingQuotesAuditService {
                 }
 
                 logger.debug("Saving last quote for booking (id: {}) to the database", bookingId);
-                persistRecordsAsQuotation(quotations);
+                persistRecordsAsQuotation(productQuotations);
                 removeFromIntermediateStorage(bookingId);
             }
         }
+    }
+
+    /**
+     * Tries to add quotations for the missing products to the {@code productQuotations} list
+     * by searching in price and restriction records.
+     */
+    private void addMissingProducts(List<ProductQuotationRecord> productQuotations,
+                                    List<ProductQuotationRecord> priceRecords,
+                                    List<ProductQuotationRecord> restrictionRecords) {
+
+        if (productQuotations.isEmpty()) {
+            return;
+        }
+        ProductQuotationRecord productQuotation = productQuotations.get(0);
+
+        Set<UUID> products = productQuotations.stream()
+                .map(ProductQuotationRecord::getProductId)
+                .collect(Collectors.toSet());
+
+        //first examine price records
+        Map<UUID, ProductQuotationRecord> newRecords = priceRecords.stream()
+                .filter(record -> !products.contains(record.getProductId()))
+                .filter(record -> isEachStopRelevant(productQuotation, record))
+                .filter(record -> Objects.equals(productQuotation.getAsap(), record.getAsap()))
+                .collect(Collectors.toMap(ProductQuotationRecord::getProductId, Function.identity(),
+                        BinaryOperator.maxBy(Comparator.comparing(ProductQuotationRecord::getCreateDate))));
+
+        //then do the same with restriction records and merge the results
+        restrictionRecords.stream()
+                .filter(record -> !products.contains(record.getProductId()))
+                .filter(record -> isEachStopRelevant(productQuotation, record))
+                .filter(record -> Objects.equals(productQuotation.getAsap(), record.getAsap()))
+                .collect(Collectors.toMap(ProductQuotationRecord::getProductId, Function.identity(),
+                        BinaryOperator.maxBy(Comparator.comparing(ProductQuotationRecord::getCreateDate))))
+                .forEach((uuid, record) -> newRecords.merge(uuid, record, (record1, record2) -> {
+                    record1.setRestrictionCode(record2.getRestrictionCode());
+                    record1.setRestrictionMessage(record2.getRestrictionMessage());
+                    record1.setPublicEventId(record2.getPublicEventId());
+                    return record1;
+                }));
+
+        productQuotations.addAll(newRecords.values());
     }
 
     private void addPriceInfo(ProductQuotationRecord record, List<ProductQuotationRecord> priceRecords) {
