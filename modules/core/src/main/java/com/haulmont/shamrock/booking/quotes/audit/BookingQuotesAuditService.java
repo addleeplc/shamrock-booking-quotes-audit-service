@@ -291,6 +291,11 @@ public class BookingQuotesAuditService {
 
     private boolean isEachStopRelevant(ProductQuotationRecord bookingRecord,
                                        ProductQuotationRecord otherRecord) {
+        if (!Objects.equals(bookingRecord.getPickupPostcode(), otherRecord.getPickupPostcode()) ||
+                (!StringUtils.containsWhitespace(bookingRecord.getPickupPostcode())
+                        && !Objects.equals(bookingRecord.getPickupAddress(), otherRecord.getPickupAddress()))) {
+            return false;
+        }
         if (!Objects.equals(bookingRecord.getPickupAddress(), otherRecord.getPickupAddress())) {
             return false;
         }
@@ -299,7 +304,9 @@ public class BookingQuotesAuditService {
                 && StringUtils.isEmpty(otherRecord.getDropAddress())) {
             return true;
         }
-        return Objects.equals(bookingRecord.getDropAddress(), otherRecord.getDropAddress());
+        return Objects.equals(bookingRecord.getDropPostcode(), otherRecord.getDropPostcode()) &&
+                (StringUtils.containsWhitespace(bookingRecord.getDropPostcode())
+                        || Objects.equals(bookingRecord.getDropAddress(), otherRecord.getDropAddress()));
     }
 
     /**
