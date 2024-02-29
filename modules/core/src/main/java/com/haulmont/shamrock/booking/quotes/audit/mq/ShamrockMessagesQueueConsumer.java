@@ -36,6 +36,8 @@ import java.math.BigDecimal;
 @Consumer(server = ServiceConfiguration.SHAMROCK_MQ_SERVER_NAME, queue = ServiceConfiguration.SHAMROCK_CONSUMER_PROPERTY_PREFIX)
 public class ShamrockMessagesQueueConsumer {
 
+    public static final String PAYMENT_TYPE_INVOICE = "invoice";
+
     @Inject
     private Logger logger;
 
@@ -100,8 +102,14 @@ public class ShamrockMessagesQueueConsumer {
             if (booking == null) return;
 
             Price price = message.getData().getPrice();
-            BigDecimal totalCharged = price == null ? null : price.getTotalCharged();
-            String currencyCode = price == null ? null : price.getCurrencyCode();
+            BigDecimal totalCharged = null;
+            String currencyCode = null;
+            if (price != null) {
+                totalCharged = PAYMENT_TYPE_INVOICE.equals(booking.getPaymentType())
+                        ? price.getPreTaxTotalFare()
+                        : price.getTotalCharged();
+                currencyCode = price.getCurrencyCode();
+            }
 
             DateTime date = message.getDate();
             bookingQuotesAuditService.processBookingPriced(booking, date, totalCharged, currencyCode);

@@ -69,6 +69,9 @@ public class Price implements Serializable {
     @JsonProperty("total_charged")
     private BigDecimal totalCharged;
 
+    @JsonProperty("pre_tax_total_fare")
+    private BigDecimal preTaxTotalFare;
+
     /**
      * mm:HH:ss
      */
@@ -163,6 +166,14 @@ public class Price implements Serializable {
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public BigDecimal getPreTaxTotalFare() {
+        return preTaxTotalFare;
+    }
+
+    public void setPreTaxTotalFare(BigDecimal preTaxTotalFare) {
+        this.preTaxTotalFare = preTaxTotalFare;
     }
 
     public enum DistanceUnits {
