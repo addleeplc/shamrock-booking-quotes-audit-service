@@ -296,12 +296,11 @@ public class BookingQuotesAuditService {
                         && !Objects.equals(bookingRecord.getPickupAddress(), otherRecord.getPickupAddress()))) {
             return false;
         }
-        if (!Objects.equals(bookingRecord.getPickupAddress(), otherRecord.getPickupAddress())) {
-            return false;
-        }
         //for public events we don't check drop address if it's not specified
-        if (otherRecord.getEventType() == EventType.PUBLIC_EVENTS_RESTRICTION
-                && StringUtils.isEmpty(otherRecord.getDropAddress())) {
+        if (bookingRecord.getEventType() == EventType.PUBLIC_EVENTS_RESTRICTION
+                && StringUtils.isEmpty(bookingRecord.getDropAddress()) ||
+                otherRecord.getEventType() == EventType.PUBLIC_EVENTS_RESTRICTION
+                        && StringUtils.isEmpty(otherRecord.getDropAddress())) {
             return true;
         }
         return Objects.equals(bookingRecord.getDropPostcode(), otherRecord.getDropPostcode()) &&
@@ -334,10 +333,7 @@ public class BookingQuotesAuditService {
             return;
         }
 
-        List<ProductQuotationRecord> leadTimeRecords = quotes.stream()
-                .filter(quote -> quote.getEventType() == EventType.LEAD_TIME_QUOTED)
-                .collect(Collectors.toList());
-        Optional<ProductQuotationRecord> lastQuote = leadTimeRecords.stream()
+        Optional<ProductQuotationRecord> lastQuote = quotes.stream()
                 .max(Comparator.comparing(ProductQuotationRecord::getCreateDate));
 
         if (lastQuote.isPresent()) {
@@ -350,6 +346,9 @@ public class BookingQuotesAuditService {
                     return;
                 }
 
+                List<ProductQuotationRecord> leadTimeRecords = quotes.stream()
+                        .filter(quote -> quote.getEventType() == EventType.LEAD_TIME_QUOTED)
+                        .collect(Collectors.toList());
                 List<ProductQuotationRecord> priceRecords = quotes.stream()
                         .filter(quote -> quote.getEventType() == EventType.BOOKING_PRICED)
                         .collect(Collectors.toList());
@@ -361,16 +360,22 @@ public class BookingQuotesAuditService {
                 Boolean asap;
 
                 //in some cases last quote comes with asap = true, although in reality it was a prebook job
-                //to check this we examine the last price quote
-                Optional<ProductQuotationRecord> lastPriceQuote = priceRecords.stream()
+                //to check this we examine the last non lead time quote
+                Optional<ProductQuotationRecord> lastNonLeadTimeQuote = priceRecords.stream()
                         .max(Comparator.comparing(ProductQuotationRecord::getCreateDate));
-                if (lastPriceQuote.isPresent()
-                        && !Objects.equals(lastPriceQuote.get().getAsap(), lastQuote.get().getAsap())) {
-                    asap = lastPriceQuote.get().getAsap();
+                if (lastNonLeadTimeQuote.isEmpty()) {
+                    lastNonLeadTimeQuote = restrictionRecords.stream()
+                            .max(Comparator.comparing(ProductQuotationRecord::getCreateDate));
+                }
+                if (lastNonLeadTimeQuote.isPresent()
+                        && !Objects.equals(lastNonLeadTimeQuote.get().getAsap(), lastQuote.get().getAsap())) {
+                    ProductQuotationRecord record = lastNonLeadTimeQuote.get();
+                    asap = record.getAsap();
                     lastRecord = leadTimeRecords.stream()
                             .filter(quote -> Objects.equals(quote.getAsap(), asap))
+                            .filter(quote -> isEachStopRelevant(record, quote))
                             .max(Comparator.comparing(ProductQuotationRecord::getCreateDate))
-                            .orElseGet(lastQuote::get);
+                            .orElse(record);
                 } else {
                     lastRecord = lastQuote.get();
                     asap = lastRecord.getAsap();
@@ -395,6 +400,7 @@ public class BookingQuotesAuditService {
                             .filter(quote -> quote.getCreateDate().getMillis() + batchMaxAgeMilliseconds >
                                     lastRecord.getCreateDate().getMillis())
                             .filter(quote -> Objects.equals(quote.getAsap(), asap))
+                            .filter(quote -> isEachStopRelevant(lastRecord, quote))
                             .filter(quote -> StringUtils.isNotBlank(quote.getTransactionId()))
                             .filter(quote -> leadTimeQuotedBatches.get(quote.getTransactionId()).size() > 1)
                             .max(Comparator.comparing(ProductQuotationRecord::getCreateDate))
@@ -484,6 +490,9 @@ public class BookingQuotesAuditService {
     }
 
     private void addPriceInfo(ProductQuotationRecord record, List<ProductQuotationRecord> priceRecords) {
+        if (record.getEventType() == EventType.BOOKING_PRICED) {
+            return;
+        }
         priceRecords.stream()
                 .filter(quote -> isRelevantForBooking(record, quote))
                 .max(Comparator.comparing(ProductQuotationRecord::getCreateDate))
@@ -494,6 +503,9 @@ public class BookingQuotesAuditService {
     }
 
     private void addRestrictionInfo(ProductQuotationRecord record, List<ProductQuotationRecord> restrictionRecords) {
+        if (RESTRICTION_EVENT_TYPES.contains(record.getEventType())) {
+            return;
+        }
         restrictionRecords.stream()
                 .filter(quote -> isRelevantForBooking(record, quote))
                 .max(Comparator.comparing(ProductQuotationRecord::getCreateDate))
