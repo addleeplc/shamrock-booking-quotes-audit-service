@@ -257,14 +257,19 @@ public class BookingQuotesAuditService {
                 }
                 addMissingProducts(recordsBatch, priceRecords, restrictionRecords);
 
-                logger.debug("Saving booking (id: {}, number: {}) to the database",
-                        bookingId, bookingRecord.getBookingNumber());
-                persistRecordsAsQuotation(recordsBatch);
-
                 ProductQuotationRecord productQuote = recordsBatch.stream()
                         .filter(record -> Objects.equals(record.getProductId(), bookingRecord.getProductId()))
                         .findFirst()
                         .orElseGet(lastQuote::get);
+                //final lead time might differ from the one in the selected batch
+                if (!Objects.equals(bookingRecord.getResponseTime(), productQuote.getResponseTime())) {
+                    productQuote.setResponseTime(lastQuote.get().getResponseTime());
+                    productQuote.setLeadTimeSource(lastQuote.get().getLeadTimeSource());
+                }
+
+                logger.debug("Saving booking (id: {}, number: {}) to the database",
+                        bookingId, bookingRecord.getBookingNumber());
+                persistRecordsAsQuotation(recordsBatch);
 
                 //if responseTime is null, fill it with the product quote's delay in the recent batch
                 if (bookingRecord.getResponseTime() == null) {
