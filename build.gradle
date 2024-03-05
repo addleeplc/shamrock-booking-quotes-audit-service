@@ -65,7 +65,7 @@ shamrock {
     }
     kubernetes {
         docker {
-            baseImage = 'shamrock-microservices-base-image:openjdk11'
+            baseImage = 'shamrock-microservices-base-image:temurin11'
         }
     }
 }
