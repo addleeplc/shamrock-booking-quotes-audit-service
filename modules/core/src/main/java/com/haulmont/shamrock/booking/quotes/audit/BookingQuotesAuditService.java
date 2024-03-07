@@ -424,6 +424,12 @@ public class BookingQuotesAuditService {
                     addRestrictionInfo(productQuote, restrictionRecords);
                 }
 
+                //in some cases, single product quotation might be from price or restriction record.
+                //if so, we are trying to populate it with lead time
+                if (productQuotations.size() == 1 && productQuotations.get(0).getResponseTime() == null) {
+                    addLeadTimeInfo(productQuotations.get(0), leadTimeRecords);
+                }
+
                 productQuotations = addMissingProductQuotations(productQuotations, priceRecords, restrictionRecords);
 
                 //if booking date is null for some reason, take it from some other quote
@@ -523,6 +529,19 @@ public class BookingQuotesAuditService {
                     record.setRestrictionCode(restriction.getRestrictionCode());
                     record.setRestrictionMessage(restriction.getRestrictionMessage());
                     record.setPublicEventId(restriction.getPublicEventId());
+                });
+    }
+
+    private void addLeadTimeInfo(ProductQuotationRecord record, List<ProductQuotationRecord> leadTimeRecords) {
+        if (record.getEventType() == EventType.LEAD_TIME_QUOTED) {
+            return;
+        }
+        leadTimeRecords.stream()
+                .filter(quote -> isRelevantForBooking(record, quote))
+                .max(Comparator.comparing(ProductQuotationRecord::getCreateDate))
+                .ifPresent(leadTimeQuote -> {
+                    record.setResponseTime(leadTimeQuote.getResponseTime());
+                    record.setLeadTimeSource(leadTimeQuote.getLeadTimeSource());
                 });
     }
 
