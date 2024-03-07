@@ -21,7 +21,7 @@ import java.util.UUID;
 @Component
 public class QuotationRepository {
 
-    private static final String MYBATIS_NAMESPACE_PREFIX = "com.haulmont.shamrock.booking.quotes.audit";
+    private static final String MYBATIS_NAMESPACE_PREFIX = SqlSessionFactory.class.getPackageName() + ".mappers.";
 
     @Inject
     private Logger logger;
@@ -37,7 +37,7 @@ public class QuotationRepository {
                     new UpdateQuotationCommand(quotation).execute() :
                     new InsertQuotationCommand(quotation).execute();
             logger.debug("Successfully inserted {} rows", res);
-        }  catch (Throwable t) {
+        } catch (Throwable t) {
             logger.error("Fail to insert quotation", t);
         }
     }
@@ -48,7 +48,7 @@ public class QuotationRepository {
         try {
             Integer res = new InsertBookingCommand(bookingRecord).execute();
             logger.debug("Successfully inserted {} rows", res);
-        }  catch (Throwable t) {
+        } catch (Throwable t) {
             logger.error("Fail to insert booking", t);
         }
     }
@@ -57,7 +57,7 @@ public class QuotationRepository {
         if (bookingId == null) return false;
         try {
             return new BookingExistsCommand(bookingId).execute();
-        }  catch (Throwable t) {
+        } catch (Throwable t) {
             logger.error("Fail to query booking (id: {})", bookingId);
             return false;
         }
@@ -73,7 +73,7 @@ public class QuotationRepository {
 
         @Override
         protected Boolean __execute(SqlSession sqlSession) {
-            return sqlSession.selectOne(MYBATIS_NAMESPACE_PREFIX + "." + getName(),
+            return sqlSession.selectOne(MYBATIS_NAMESPACE_PREFIX + getName(),
                     Map.of("bookingId", bookingId));
         }
 
@@ -93,7 +93,7 @@ public class QuotationRepository {
 
         @Override
         protected Boolean __execute(SqlSession sqlSession) {
-            return sqlSession.selectOne(MYBATIS_NAMESPACE_PREFIX + "." + getName(),
+            return sqlSession.selectOne(MYBATIS_NAMESPACE_PREFIX + getName(),
                     Map.of("quotationId", quotationId));
         }
 
@@ -113,7 +113,7 @@ public class QuotationRepository {
 
         @Override
         protected Integer __execute(SqlSession sqlSession) {
-            return sqlSession.insert(MYBATIS_NAMESPACE_PREFIX + "." + getName(), Map.of("quotation", quotation));
+            return sqlSession.insert(MYBATIS_NAMESPACE_PREFIX + getName(), Map.of("quotation", quotation));
         }
 
         @Override
@@ -132,7 +132,7 @@ public class QuotationRepository {
 
         @Override
         protected Integer __execute(SqlSession sqlSession) {
-            return sqlSession.update(MYBATIS_NAMESPACE_PREFIX + "." + getName(), Map.of("quotation", quotation));
+            return sqlSession.update(MYBATIS_NAMESPACE_PREFIX + getName(), Map.of("quotation", quotation));
         }
 
         @Override
@@ -151,7 +151,7 @@ public class QuotationRepository {
 
         @Override
         protected Integer __execute(SqlSession sqlSession) {
-            return sqlSession.insert(MYBATIS_NAMESPACE_PREFIX + "." + getName(),
+            return sqlSession.insert(MYBATIS_NAMESPACE_PREFIX + getName(),
                     Map.of("booking", bookingRecord));
         }
 
@@ -182,7 +182,7 @@ public class QuotationRepository {
 
         @Override
         protected Integer __execute(SqlSession sqlSession) {
-            return sqlSession.delete(MYBATIS_NAMESPACE_PREFIX + "." + getName(), Map.of("till", tillDate));
+            return sqlSession.delete(MYBATIS_NAMESPACE_PREFIX + getName(), Map.of("till", tillDate));
         }
 
         @Override

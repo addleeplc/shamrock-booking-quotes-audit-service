@@ -17,4 +17,6 @@
         <appender-ref ref="MONACO_APP"/>
     </logger>
 
+    <logger name="com.haulmont.shamrock.booking.quotes.audit.mybatis" level="OFF"/>
+
 </configuration>
