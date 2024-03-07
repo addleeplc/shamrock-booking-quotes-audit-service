@@ -255,7 +255,7 @@ public class BookingQuotesAuditService {
                     addPriceInfo(productQuote, priceRecords);
                     addRestrictionInfo(productQuote, restrictionRecords);
                 }
-                addMissingProducts(recordsBatch, priceRecords, restrictionRecords);
+                recordsBatch = addMissingProductQuotations(recordsBatch, priceRecords, restrictionRecords);
 
                 ProductQuotationRecord productQuote = recordsBatch.stream()
                         .filter(record -> Objects.equals(record.getProductId(), bookingRecord.getProductId()))
@@ -424,7 +424,7 @@ public class BookingQuotesAuditService {
                     addRestrictionInfo(productQuote, restrictionRecords);
                 }
 
-                addMissingProducts(productQuotations, priceRecords, restrictionRecords);
+                productQuotations = addMissingProductQuotations(productQuotations, priceRecords, restrictionRecords);
 
                 //if booking date is null for some reason, take it from some other quote
                 ProductQuotationRecord quotationRecord = productQuotations.get(0);
@@ -456,12 +456,12 @@ public class BookingQuotesAuditService {
      * Tries to add quotations for the missing products to the {@code productQuotations} list
      * by searching in price and restriction records.
      */
-    private void addMissingProducts(List<ProductQuotationRecord> productQuotations,
-                                    List<ProductQuotationRecord> priceRecords,
-                                    List<ProductQuotationRecord> restrictionRecords) {
+    private List<ProductQuotationRecord> addMissingProductQuotations(List<ProductQuotationRecord> productQuotations,
+                                                                     List<ProductQuotationRecord> priceRecords,
+                                                                     List<ProductQuotationRecord> restrictionRecords) {
 
         if (productQuotations.isEmpty()) {
-            return;
+            return productQuotations;
         }
         ProductQuotationRecord productQuotation = productQuotations.get(0);
 
@@ -491,7 +491,12 @@ public class BookingQuotesAuditService {
                     return record1;
                 }));
 
-        productQuotations.addAll(newRecords.values());
+        if (!newRecords.isEmpty()) {
+            ArrayList<ProductQuotationRecord> result = new ArrayList<>(productQuotations);
+            result.addAll(newRecords.values());
+            return result;
+        }
+        return productQuotations;
     }
 
     private void addPriceInfo(ProductQuotationRecord record, List<ProductQuotationRecord> priceRecords) {

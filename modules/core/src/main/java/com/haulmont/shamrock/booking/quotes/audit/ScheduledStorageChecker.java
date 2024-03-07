@@ -11,6 +11,7 @@ import com.haulmont.monaco.scheduler.annotations.Scheduled;
 import com.haulmont.shamrock.booking.quotes.audit.storage.ProductQuotationRecordStorage;
 import org.picocontainer.annotations.Component;
 import org.picocontainer.annotations.Inject;
+import org.slf4j.Logger;
 
 import java.util.List;
 import java.util.UUID;
@@ -25,9 +26,17 @@ public class ScheduledStorageChecker {
     @Inject
     private BookingQuotesAuditService bookingQuotesAuditService;
 
+    @Inject
+    private Logger logger;
+
     @Schedule(schedule = ServiceConfiguration.STORAGE_CHECK_RATE, delay = ServiceConfiguration.STORAGE_CHECK_RATE)
     public void check() {
-        productQuotationRecordStorage.keys().forEach(bookingId ->
-                        bookingQuotesAuditService.checkRecordsFromIntermediateStorage(bookingId));
+        for (UUID bookingId : productQuotationRecordStorage.keys()) {
+            try {
+                bookingQuotesAuditService.checkRecordsFromIntermediateStorage(bookingId);
+            } catch (Exception e) {
+                logger.warn("Fail to check booking from intermediate storage", e);
+            }
+        }
     }
 }
