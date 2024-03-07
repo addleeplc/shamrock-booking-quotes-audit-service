@@ -8,10 +8,12 @@ package com.haulmont.shamrock.booking.quotes.audit.config;
 
 import com.haulmont.monaco.PropertyEvent;
 import com.haulmont.monaco.config.Properties;
+import org.apache.commons.collections4.CollectionUtils;
 import org.picocontainer.annotations.Component;
 import org.picocontainer.annotations.Inject;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,7 +29,8 @@ public class GlobalConfigurationCache {
     private GlobalConfigurationStorage configurationStorage;
 
     public List<String> getTestAccounts() {
-        return new ArrayList<>(testAccounts.get(TEST_ACCOUNT_PROPERTY_NAME));
+        List<String> value = testAccounts.get(TEST_ACCOUNT_PROPERTY_NAME);
+        return CollectionUtils.isNotEmpty(value) ? new ArrayList<>(value) : Collections.emptyList();
     }
 
     public void start() {

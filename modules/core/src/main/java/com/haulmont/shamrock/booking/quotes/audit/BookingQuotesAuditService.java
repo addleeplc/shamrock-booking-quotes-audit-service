@@ -187,8 +187,7 @@ public class BookingQuotesAuditService {
     }
 
     /**
-     * Checks if intermediate storage contains other records related to the same booking
-     * and saves the booking record to database.
+     * Saves committed booking record to a database.
      *
      * @param bookingRecord record related to created/amended booking
      */
@@ -281,36 +280,44 @@ public class BookingQuotesAuditService {
                 }
             }
         } else {
+            logger.debug("Saving booking (id: {}, number: {}) to the database",
+                    bookingId, bookingRecord.getBookingNumber());
             persistRecordsAsQuotation(Collections.singletonList(bookingRecord));
         }
 
         persistRecordAsBooking(bookingRecord);
     }
 
-    private boolean isRelevantForBooking(ProductQuotationRecord bookingRecord,
+    private boolean isRelevantForBooking(ProductQuotationRecord originalRecord,
                                          ProductQuotationRecord otherRecord) {
-        return Objects.equals(bookingRecord.getProductId(), otherRecord.getProductId()) &&
-                isEachStopRelevant(bookingRecord, otherRecord) &&
-                Objects.equals(bookingRecord.getAsap(), otherRecord.getAsap());
+        return Objects.equals(originalRecord.getProductId(), otherRecord.getProductId()) &&
+                isEachStopRelevant(originalRecord, otherRecord) &&
+                Objects.equals(originalRecord.getAsap(), otherRecord.getAsap());
     }
 
-    private boolean isEachStopRelevant(ProductQuotationRecord bookingRecord,
+    private boolean isEachStopRelevant(ProductQuotationRecord originalRecord,
                                        ProductQuotationRecord otherRecord) {
-        if (!Objects.equals(bookingRecord.getPickupPostcode(), otherRecord.getPickupPostcode()) ||
-                (!StringUtils.containsWhitespace(bookingRecord.getPickupPostcode())
-                        && !Objects.equals(bookingRecord.getPickupAddress(), otherRecord.getPickupAddress()))) {
+        if (!Objects.equals(originalRecord.getPickupPostcode(), otherRecord.getPickupPostcode()) ||
+                (!StringUtils.containsWhitespace(originalRecord.getPickupPostcode())
+                        && !Objects.equals(originalRecord.getPickupAddress(), otherRecord.getPickupAddress()))) {
             return false;
         }
         //for public events we don't check drop address if it's not specified
-        if (bookingRecord.getEventType() == EventType.PUBLIC_EVENTS_RESTRICTION
-                && StringUtils.isEmpty(bookingRecord.getDropAddress()) ||
+        if (originalRecord.getEventType() == EventType.PUBLIC_EVENTS_RESTRICTION
+                && StringUtils.isEmpty(originalRecord.getDropAddress()) ||
                 otherRecord.getEventType() == EventType.PUBLIC_EVENTS_RESTRICTION
                         && StringUtils.isEmpty(otherRecord.getDropAddress())) {
             return true;
         }
-        return Objects.equals(bookingRecord.getDropPostcode(), otherRecord.getDropPostcode()) &&
-                (StringUtils.containsWhitespace(bookingRecord.getDropPostcode())
-                        || Objects.equals(bookingRecord.getDropAddress(), otherRecord.getDropAddress()));
+        return Objects.equals(originalRecord.getDropPostcode(), otherRecord.getDropPostcode()) &&
+                (StringUtils.containsWhitespace(originalRecord.getDropPostcode())
+                        || Objects.equals(originalRecord.getDropAddress(), otherRecord.getDropAddress()));
+    }
+
+    private boolean isMarketRelevant(ProductQuotationRecord originalRecord,
+                                     ProductQuotationRecord otherRecord) {
+        //if original record does not have market info, skip this check
+        return originalRecord.getMarket() == null || originalRecord.getMarket() == otherRecord.getMarket();
     }
 
     /**
@@ -406,6 +413,7 @@ public class BookingQuotesAuditService {
                                     lastRecord.getCreateDate().getMillis())
                             .filter(quote -> Objects.equals(quote.getAsap(), asap))
                             .filter(quote -> isEachStopRelevant(lastRecord, quote))
+                            .filter(quote -> isMarketRelevant(lastRecord, quote))
                             .filter(quote -> StringUtils.isNotBlank(quote.getTransactionId()))
                             .filter(quote -> leadTimeQuotedBatches.get(quote.getTransactionId()).size() > 1)
                             .max(Comparator.comparing(ProductQuotationRecord::getCreateDate))
