@@ -83,6 +83,9 @@ public class Booking implements Serializable {
     @JsonProperty("prebooked_by_driver")
     private Driver prebookedByDriver;
 
+    @JsonProperty("execution_status")
+    private Job.ExecutionStatus executionStatus;
+
     @JsonProperty("booking_channel")
     private String bookingChannel;
 
@@ -236,6 +239,14 @@ public class Booking implements Serializable {
 
     public void setPrebookedByDriver(Driver prebookedByDriver) {
         this.prebookedByDriver = prebookedByDriver;
+    }
+
+    public Job.ExecutionStatus getExecutionStatus() {
+        return executionStatus;
+    }
+
+    public void setExecutionStatus(Job.ExecutionStatus executionStatus) {
+        this.executionStatus = executionStatus;
     }
 
     public String getBookingChannel() {

@@ -8,6 +8,7 @@ package com.haulmont.shamrock.booking.quotes.audit.model.booking;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.haulmont.shamrock.booking.quotes.audit.model.driver.Driver;
 
 import java.util.UUID;
 
@@ -24,6 +25,9 @@ public class Supplier {
 
     @JsonProperty("services")
     private Service service;
+
+    @JsonProperty("driver_ref")
+    private Driver driverReference;
 
     public Supplier(UUID id, String code) {
         this.id = id;
@@ -60,5 +64,13 @@ public class Supplier {
 
     public void setService(Service service) {
         this.service = service;
+    }
+
+    public Driver getDriverReference() {
+        return driverReference;
+    }
+
+    public void setDriverReference(Driver driverReference) {
+        this.driverReference = driverReference;
     }
 }

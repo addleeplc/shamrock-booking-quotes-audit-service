@@ -11,11 +11,15 @@ import com.haulmont.shamrock.booking.quotes.audit.dto.EventType;
 import com.haulmont.shamrock.booking.quotes.audit.dto.ProductQuotationRecord;
 import com.haulmont.shamrock.booking.quotes.audit.dto.RestrictionCode;
 import com.haulmont.shamrock.booking.quotes.audit.model.booking.Booking;
+import com.haulmont.shamrock.booking.quotes.audit.model.booking.Job;
+import com.haulmont.shamrock.booking.quotes.audit.model.booking.Supplier;
+import com.haulmont.shamrock.booking.quotes.audit.model.driver.Driver;
 import com.haulmont.shamrock.booking.quotes.audit.model.shamrock.LeadTimeSource;
 import com.haulmont.shamrock.booking.quotes.audit.mybatis.EntitiesConverter;
 import com.haulmont.shamrock.booking.quotes.audit.mybatis.QuotationRepository;
 import com.haulmont.shamrock.booking.quotes.audit.mybatis.entities.BookingRecord;
 import com.haulmont.shamrock.booking.quotes.audit.mybatis.entities.Quotation;
+import com.haulmont.shamrock.booking.quotes.audit.services.BookingCacheService;
 import com.haulmont.shamrock.booking.quotes.audit.storage.ProductQuotationRecordStorage;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
@@ -45,6 +49,9 @@ public class BookingQuotesAuditService {
             EventType.JOB_CHECK_RESTRICTION, EventType.PICKUP_CIRCUIT_RESTRICTION,
             EventType.PREBOOK_LIMIT_RESTRICTION, EventType.PUBLIC_EVENTS_RESTRICTION);
 
+    private static final List<Job.ExecutionStatus> DRIVER_STARTED_JOB_STATUSES = List.of(Job.ExecutionStatus.ON_WAY,
+            Job.ExecutionStatus.AT_PICKUP, Job.ExecutionStatus.ON_BOARD, Job.ExecutionStatus.DONE);
+
     @Inject
     private Logger logger;
 
@@ -63,6 +70,9 @@ public class BookingQuotesAuditService {
     @Inject
     private GlobalConfigurationCache globalConfigurationCache;
 
+    @Inject
+    private BookingCacheService bookingCacheService;
+
     public void processBookingCreated(Booking booking, DateTime eventDate) {
         if (isTestAccount(booking)) {
             return;
@@ -76,6 +86,10 @@ public class BookingQuotesAuditService {
 
     public void processBookingAmended(Booking booking, DateTime eventDate) {
         if (isTestAccount(booking)) {
+            return;
+        }
+        if (isDriverTookTheJob(booking)) {
+            logger.debug("Skipped BookingAmended event because driver already started the job");
             return;
         }
 
@@ -573,5 +587,19 @@ public class BookingQuotesAuditService {
             return testAccounts.contains(booking.getCustomer().getCode());
         }
         return true;
+    }
+
+    private boolean isDriverTookTheJob(Booking booking) {
+        Booking reloadedBooking = bookingCacheService.getBooking(booking.getId());
+        if (reloadedBooking == null) {
+            return false;
+        } else {
+            Driver driver;
+            Supplier supplier = reloadedBooking.getSupplier();
+            Job.ExecutionStatus executionStatus = reloadedBooking.getExecutionStatus();
+            driver = supplier != null ? supplier.getDriverReference() : reloadedBooking.getDriver();
+
+            return driver != null && executionStatus != null && DRIVER_STARTED_JOB_STATUSES.contains(executionStatus);
+        }
     }
 }
