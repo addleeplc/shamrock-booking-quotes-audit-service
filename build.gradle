@@ -23,7 +23,7 @@ apply(plugin: 'shamrock-services')
 
 shamrock {
     service {
-        group = 'com.haulmont.shamrock.booking.quotes.audit'
+        group = 'com.haulmont.shamrock'
         version = '1.0'
         name = rootProject.name
         snapshot = true
@@ -73,7 +73,7 @@ shamrock {
 def core_module = project(":${rootProject.name}-core")
 def rs_module = project(":${rootProject.name}-rs")
 
-def monaco_version = '3.3-SNAPSHOT'
+def monaco_version = '3.4-SNAPSHOT'
 
 configure([core_module, rs_module]) {
     apply(plugin: 'java')
@@ -103,16 +103,22 @@ configure([core_module, rs_module]) {
 
 configure(core_module) {
     dependencies {
-        compile(group: 'com.haulmont.monaco', name: 'monaco-config', version: "$monaco_version")
         compile(group: 'com.haulmont.monaco', name: 'monaco-core', version: "$monaco_version")
+        compile(group: 'com.haulmont.monaco', name: 'monaco-jetty', version: "$monaco_version")
+
         compile(group: 'com.haulmont.monaco', name: 'monaco-graylog-reporter', version: "$monaco_version")
         compile(group: 'com.haulmont.monaco', name: 'monaco-sentry-reporter', version: "$monaco_version")
-        compile(group: 'com.haulmont.monaco', name: 'monaco-ds-postgresql', version: "$monaco_version")
-        compile(group: 'com.haulmont.monaco', name: 'monaco-rabbit-mq', version: "$monaco_version")
-        compile(group: 'com.haulmont.monaco', name: 'monaco-redis', version: "$monaco_version")
-        compile(group: 'com.haulmont.monaco', name: 'monaco-redis-mq', version: "$monaco_version")
-        compile(group: 'com.haulmont.monaco', name: 'monaco-scheduler', version: "$monaco_version")
+
         compile(group: 'com.haulmont.monaco', name: 'monaco-mybatis', version: "$monaco_version")
+        compile(group: 'com.haulmont.monaco', name: 'monaco-ds-postgresql', version: "$monaco_version")
+
+        compile(group: 'com.haulmont.monaco', name: 'monaco-rabbit-mq', version: "$monaco_version")
+        compile(group: 'com.haulmont.monaco', name: 'monaco-redis-mq', version: "$monaco_version")
+
+        compile(group: 'com.haulmont.monaco', name: 'monaco-redis', version: "$monaco_version")
+
+        compile(group: 'com.haulmont.monaco', name: 'monaco-scheduler', version: "$monaco_version")
+
         compile(group: 'com.haulmont.monaco', name: 'monaco-unirest', version: "$monaco_version")
     }
 

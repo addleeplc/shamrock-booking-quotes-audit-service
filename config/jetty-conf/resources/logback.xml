@@ -13,7 +13,7 @@
     <property name="monaco-rs.level.LoggingFilter" value="DEBUG"/>
     <property name="monaco-rs.level.MaskingLoggerInterceptor" value="DEBUG"/>
 
-    <logger name="com.haulmont.shamrock.booking.quotes.audit" level="debug">
+    <logger name="com.haulmont.shamrock.booking.quotes.audit" level="DEBUG">
         <appender-ref ref="MONACO_APP"/>
     </logger>
 
