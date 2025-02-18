@@ -14,6 +14,7 @@ import java.util.UUID;
 
 public class Quotation implements Serializable {
     private UUID id;
+    private DateTime createTs;
     private DateTime bookingDate;
     private String bookingChannel;
     private DateTime eventDate;
@@ -39,6 +40,14 @@ public class Quotation implements Serializable {
 
     public void setId(UUID id) {
         this.id = id;
+    }
+
+    public DateTime getCreateTs() {
+        return createTs;
+    }
+
+    public void setCreateTs(DateTime createTs) {
+        this.createTs = createTs;
     }
 
     public DateTime getBookingDate() {

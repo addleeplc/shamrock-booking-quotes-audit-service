@@ -1,5 +1,7 @@
 CREATE TABLE public.quotation
 (   id uuid NOT NULL,
+    create_ts timestamp,
+    update_ts timestamp,
     date timestamp,
     booking_channel varchar,
     event_date timestamptz,
@@ -37,6 +39,7 @@ CREATE TABLE public.product_quotation
     CONSTRAINT booking_restriction_pkey PRIMARY KEY (id),
 	constraint fk_product_quotation_on_quotation foreign key (quotation_id) references quotation(id) on delete cascade
 );
+CREATE INDEX product_quotation_quotation_id_idx ON public.product_quotation USING btree (quotation_id);
 
 CREATE TABLE public.booking
 (   id uuid NOT NULL,
@@ -54,3 +57,4 @@ CREATE TABLE public.booking
     CONSTRAINT booking_pkey PRIMARY KEY (id),
     constraint fk_booking_on_quotation foreign key (quotation_id) references quotation(id) on delete cascade
 );
+CREATE INDEX booking_quotation_id_idx ON public.booking USING btree (quotation_id);

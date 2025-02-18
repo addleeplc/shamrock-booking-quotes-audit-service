@@ -12,6 +12,7 @@ import com.haulmont.shamrock.booking.quotes.audit.model.shamrock.LeadTimeSource;
 import com.haulmont.shamrock.booking.quotes.audit.mybatis.entities.BookingRecord;
 import com.haulmont.shamrock.booking.quotes.audit.mybatis.entities.ProductQuotation;
 import com.haulmont.shamrock.booking.quotes.audit.mybatis.entities.Quotation;
+import org.joda.time.DateTime;
 import org.joda.time.Period;
 
 import java.util.List;
@@ -51,6 +52,7 @@ public class EntitiesConverter {
         ProductQuotationRecord record = records.get(0);
         Quotation quotation = new Quotation();
         quotation.setId(record.getBookingId());
+        quotation.setCreateTs(DateTime.now());
         quotation.setBookingDate(record.getBookingDate());
         quotation.setBookingChannel(record.getBookingChannel());
         quotation.setEventDate(record.getEventDate());

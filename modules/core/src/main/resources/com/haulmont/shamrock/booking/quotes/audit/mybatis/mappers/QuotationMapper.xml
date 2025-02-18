@@ -7,6 +7,8 @@
     <insert id="insertQuotation">
         insert into quotation (
             id,
+            create_ts,
+            update_ts,
             date,
             booking_channel,
             event_date,
@@ -26,6 +28,8 @@
             transaction_id
         ) values (
             cast(#{quotation.id, javaType=java.util.UUID, jdbcType=OTHER} as uuid),
+            #{quotation.createTs},
+            #{quotation.createTs},
             #{quotation.bookingDate},
             #{quotation.bookingChannel},
             #{quotation.eventDate},
@@ -80,6 +84,7 @@
         update
             quotation
         set
+            update_ts = #{quotation.createTs},
             date = #{quotation.bookingDate},
             booking_channel = #{quotation.bookingChannel},
             event_date = #{quotation.eventDate},
