@@ -20,6 +20,7 @@ import com.haulmont.shamrock.booking.quotes.audit.mybatis.QuotationRepository;
 import com.haulmont.shamrock.booking.quotes.audit.mybatis.entities.BookingRecord;
 import com.haulmont.shamrock.booking.quotes.audit.mybatis.entities.Quotation;
 import com.haulmont.shamrock.booking.quotes.audit.services.BookingCacheService;
+import com.haulmont.shamrock.booking.quotes.audit.services.BookingRegistryService;
 import com.haulmont.shamrock.booking.quotes.audit.storage.ProductQuotationRecordStorage;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
@@ -72,6 +73,9 @@ public class BookingQuotesAuditService {
 
     @Inject
     private BookingCacheService bookingCacheService;
+
+    @Inject
+    private BookingRegistryService bookingRegistryService;
 
     public void processBookingCreated(Booking booking, DateTime eventDate) {
         if (isTestAccount(booking)) {
@@ -590,16 +594,29 @@ public class BookingQuotesAuditService {
     }
 
     private boolean isDriverTookTheJob(Booking booking) {
-        Booking reloadedBooking = bookingCacheService.getBooking(booking.getId());
-        if (reloadedBooking == null) {
-            return false;
-        } else {
+        Booking reloadedBooking = null;
+        try {
+            reloadedBooking = bookingCacheService.getBooking(booking.getId());
+        } catch (Exception e) {
+            logger.warn("Fail to load the booking from booking-cache (booking.id: {})", booking.getId(), e);
+        }
+        try {
+            if (reloadedBooking == null) {
+                reloadedBooking = bookingRegistryService.getBooking(booking.getId());
+                if (reloadedBooking == null) {
+                    logger.warn("Fail to find the booking with the given id (booking.id: {})", booking.getId());
+                    return false;
+                }
+            }
             Driver driver;
             Supplier supplier = reloadedBooking.getSupplier();
             Job.ExecutionStatus executionStatus = reloadedBooking.getExecutionStatus();
             driver = supplier != null ? supplier.getDriverReference() : reloadedBooking.getDriver();
 
             return driver != null && executionStatus != null && DRIVER_STARTED_JOB_STATUSES.contains(executionStatus);
+        } catch (Exception e) {
+            logger.warn("Fail to check if a driver took the job (booking.id: {})", booking.getId(), e);
+            return false;
         }
     }
 }
