@@ -22,12 +22,12 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 @Component
-public class ClientGradeCache implements CacheManagement {
+public class AccountCache implements CacheManagement {
 
     private static final long DEFAULT_CACHE_SIZE = 1000L;
     private static final long DEFAULT_CACHE_EXPIRATION_MINUTES = 60L;
 
-    private LoadingCache<String, Optional<String>> clientGrade;
+    private LoadingCache<String, Optional<Account>> accountByClientPid;
 
     @Inject
     private Logger logger;
@@ -39,29 +39,28 @@ public class ClientGradeCache implements CacheManagement {
     private CustomerProfileService customerProfileService;
 
     public void start() {
-        clientGrade = CacheBuilder.newBuilder()
-                .maximumSize(Optional.ofNullable(serviceConfiguration.getClientGradeCacheSize()).orElse(DEFAULT_CACHE_SIZE))
-                .expireAfterWrite(ObjectUtils.defaultIfNull(serviceConfiguration.getClientGradeCacheElementExpireAfterMinutes(), DEFAULT_CACHE_EXPIRATION_MINUTES), TimeUnit.MINUTES)
+        accountByClientPid = CacheBuilder.newBuilder()
+                .maximumSize(Optional.ofNullable(serviceConfiguration.getAccountCacheSize()).orElse(DEFAULT_CACHE_SIZE))
+                .expireAfterWrite(ObjectUtils.defaultIfNull(serviceConfiguration.getAccountCacheElementExpireAfterMinutes(), DEFAULT_CACHE_EXPIRATION_MINUTES), TimeUnit.MINUTES)
                 .build(new CacheLoader<>() {
                     @Override
-                    public Optional<String> load(@Nonnull String key) {
-                        Optional<Account> account = customerProfileService.getAccountByClient(key);
-                        return account.map(value -> value.getGrade() != null ? value.getGrade().getCode() : null);
+                    public Optional<Account> load(@Nonnull String key) {
+                        return customerProfileService.getAccountByClient(key);
                     }
                 });
     }
 
-    public Optional<String> getGrade(String pid) {
+    public Optional<Account> getAccount(String clientPid) {
         try {
-            return clientGrade.get(pid);
+            return accountByClientPid.get(clientPid);
         } catch (Exception e) {
-            logger.warn("Failed to load client grade for pid: {}", pid, e);
+            logger.warn("Failed to load client for pid: {}", clientPid, e);
             return Optional.empty();
         }
     }
 
     @Override
     public void invalidateAll() {
-        clientGrade.invalidateAll();
+        accountByClientPid.invalidateAll();
     }
 }

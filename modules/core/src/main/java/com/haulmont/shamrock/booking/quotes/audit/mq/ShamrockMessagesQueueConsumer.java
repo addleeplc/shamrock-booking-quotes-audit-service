@@ -10,7 +10,10 @@ import com.haulmont.monaco.mq.annotations.Subscribe;
 import com.haulmont.monaco.rabbit.mq.annotations.Consumer;
 import com.haulmont.shamrock.booking.quotes.audit.BookingQuotesAuditService;
 import com.haulmont.shamrock.booking.quotes.audit.ServiceConfiguration;
+import com.haulmont.shamrock.booking.quotes.audit.caches.AccountCache;
 import com.haulmont.shamrock.booking.quotes.audit.model.booking.Booking;
+import com.haulmont.shamrock.booking.quotes.audit.model.customer.Account;
+import com.haulmont.shamrock.booking.quotes.audit.model.customer.PaymentModel;
 import com.haulmont.shamrock.booking.quotes.audit.model.price.Price;
 import com.haulmont.shamrock.booking.quotes.audit.model.shamrock.LeadTimeSource;
 import com.haulmont.shamrock.booking.quotes.audit.model.shamrock.PublicEvent;
@@ -31,6 +34,7 @@ import org.picocontainer.annotations.Inject;
 import org.slf4j.Logger;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 
 @Component
 @Consumer(server = ServiceConfiguration.SHAMROCK_MQ_SERVER_NAME, queue = ServiceConfiguration.SHAMROCK_CONSUMER_PROPERTY_PREFIX)
@@ -43,6 +47,9 @@ public class ShamrockMessagesQueueConsumer {
 
     @Inject
     private BookingQuotesAuditService bookingQuotesAuditService;
+
+    @Inject
+    private AccountCache accountCache;
 
     @SuppressWarnings("unused")
     @Subscribe
@@ -89,7 +96,7 @@ public class ShamrockMessagesQueueConsumer {
             if (booking == null) return;
 
             DateTime date = message.getDate();
-            bookingQuotesAuditService.processBookingAmended(booking, date);
+            bookingQuotesAuditService.processBookingAmended(booking, date, message.getData().getChangedProperties());
         } catch (Exception e) {
             logger.error("Failed to process BookingAmended message (message.id: {})", message.getId(), e);
         }
@@ -105,7 +112,7 @@ public class ShamrockMessagesQueueConsumer {
             BigDecimal totalCharged = null;
             String currencyCode = null;
             if (price != null) {
-                totalCharged = PAYMENT_TYPE_INVOICE.equals(booking.getPaymentType())
+                totalCharged = PAYMENT_TYPE_INVOICE.equals(booking.getPaymentType()) && !isAtJobCompletionAccount(booking)
                         ? price.getPreTaxTotalFare()
                         : price.getTotalCharged();
                 currencyCode = price.getCurrencyCode();
@@ -194,5 +201,16 @@ public class ShamrockMessagesQueueConsumer {
         } catch (Exception e) {
             logger.error("Failed to process PrebookLimitRestriction message (message.id: {})", message.getId(), e);
         }
+    }
+
+    public boolean isAtJobCompletionAccount(Booking booking) {
+        if (booking.getCustomerReference() != null && booking.getCustomerReference().getClient() != null) {
+            Optional<Account> account = accountCache.getAccount(booking.getCustomerReference().getClient().getPid());
+            if (account.isPresent()) {
+                PaymentModel paymentModel = account.get().getPaymentModel();
+                return paymentModel != null && paymentModel.getType() == PaymentModel.Type.ONE_TIME;
+            }
+        }
+        return false;
     }
 }

@@ -19,11 +19,11 @@ public interface ServiceConfiguration {
     @Property("redis.resourceName")
     String getRedisResource();
 
-    @Property("caches.client-grade.size")
-    Long getClientGradeCacheSize();
+    @Property("caches.account.size")
+    Long getAccountCacheSize();
 
-    @Property("caches.client-grade.expire-after.minutes")
-    Long getClientGradeCacheElementExpireAfterMinutes();
+    @Property("caches.account.expire-after.minutes")
+    Long getAccountCacheElementExpireAfterMinutes();
 
     @Property("storage.wait-next-event.committed")
     Duration getStorageWaitNextEventCommitted();

@@ -6,7 +6,7 @@
 
 package com.haulmont.shamrock.booking.quotes.audit;
 
-import com.haulmont.shamrock.booking.quotes.audit.caches.ClientGradeCache;
+import com.haulmont.shamrock.booking.quotes.audit.caches.AccountCache;
 import com.haulmont.shamrock.booking.quotes.audit.caches.ProductCache;
 import com.haulmont.shamrock.booking.quotes.audit.dto.EventType;
 import com.haulmont.shamrock.booking.quotes.audit.dto.Market;
@@ -14,6 +14,7 @@ import com.haulmont.shamrock.booking.quotes.audit.dto.ProductQuotationRecord;
 import com.haulmont.shamrock.booking.quotes.audit.dto.RestrictionCode;
 import com.haulmont.shamrock.booking.quotes.audit.model.booking.Booking;
 import com.haulmont.shamrock.booking.quotes.audit.model.booking.Stop;
+import com.haulmont.shamrock.booking.quotes.audit.model.customer.Account;
 import com.haulmont.shamrock.booking.quotes.audit.model.product.Product;
 import com.haulmont.shamrock.booking.quotes.audit.model.shamrock.LeadTimeSource;
 import org.apache.commons.lang3.BooleanUtils;
@@ -31,7 +32,7 @@ import java.util.UUID;
 public class ProductQuotationRecordConverter {
 
     @Inject
-    private ClientGradeCache clientGradeCache;
+    private AccountCache accountCache;
 
     @Inject
     private ProductCache productCache;
@@ -199,7 +200,8 @@ public class ProductQuotationRecordConverter {
 
     private String getClientGrade(Booking booking) {
         if (booking.getCustomerReference() != null && booking.getCustomerReference().getClient() != null) {
-            Optional<String> grade = clientGradeCache.getGrade(booking.getCustomerReference().getClient().getPid());
+            Optional<Account> account = accountCache.getAccount(booking.getCustomerReference().getClient().getPid());
+            Optional<String> grade = account.map(value -> value.getGrade() != null ? value.getGrade().getCode() : null);
             if (grade.isPresent()) {
                 return grade.get();
             }

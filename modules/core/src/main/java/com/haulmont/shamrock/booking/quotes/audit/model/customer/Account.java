@@ -33,6 +33,9 @@ public class Account {
     @JsonProperty("show_price")
     private Boolean showPrice;
 
+    @JsonProperty("payment_model")
+    private PaymentModel paymentModel;
+
     public String getPid() {
         return pid;
     }
@@ -87,5 +90,13 @@ public class Account {
 
     public void setShowPrice(Boolean showPrice) {
         this.showPrice = showPrice;
+    }
+
+    public PaymentModel getPaymentModel() {
+        return paymentModel;
+    }
+
+    public void setPaymentModel(PaymentModel paymentModel) {
+        this.paymentModel = paymentModel;
     }
 }

@@ -22,6 +22,9 @@ import com.haulmont.shamrock.booking.quotes.audit.mybatis.entities.Quotation;
 import com.haulmont.shamrock.booking.quotes.audit.services.BookingCacheService;
 import com.haulmont.shamrock.booking.quotes.audit.services.BookingRegistryService;
 import com.haulmont.shamrock.booking.quotes.audit.storage.ProductQuotationRecordStorage;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.BooleanUtils;
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Period;
@@ -52,6 +55,10 @@ public class BookingQuotesAuditService {
 
     private static final List<Job.ExecutionStatus> DRIVER_STARTED_JOB_STATUSES = List.of(Job.ExecutionStatus.ON_WAY,
             Job.ExecutionStatus.AT_PICKUP, Job.ExecutionStatus.ON_BOARD, Job.ExecutionStatus.DONE);
+
+    private static final Set<String> AMEND_RELEVANT_PROPERTIES =
+            Set.of("asSoonAsPossible", "jobDate", "appearanceDate", "delay", "service", "stops",
+                    "clientTotalPrice", "clientPricing");
 
     @Inject
     private Logger logger;
@@ -88,12 +95,16 @@ public class BookingQuotesAuditService {
         saveToIntermediateStorage(record);
     }
 
-    public void processBookingAmended(Booking booking, DateTime eventDate) {
+    public void processBookingAmended(Booking booking, DateTime eventDate, Set<String> changedProperties) {
         if (isTestAccount(booking)) {
             return;
         }
         if (isDriverTookTheJob(booking)) {
-            logger.debug("Skipped BookingAmended event because driver already started the job");
+            logger.debug("Skipped BookingAmended event because driver already started the job (booking.id: {})", booking.getId());
+            return;
+        }
+        if (CollectionUtils.isNotEmpty(changedProperties) && !hasRelevantChange(changedProperties)) {
+            logger.debug("Skipped BookingAmended event because relevant properties are not affected (booking.id: {})", booking.getId());
             return;
         }
 
@@ -101,6 +112,13 @@ public class BookingQuotesAuditService {
                 booking, eventDate, EventType.BOOKING_AMENDED);
 
         saveToIntermediateStorage(record);
+    }
+
+    private boolean hasRelevantChange(Set<String> changedProperties) {
+        if (CollectionUtils.isEmpty(changedProperties)) {
+            return false;
+        }
+        return CollectionUtils.containsAny(AMEND_RELEVANT_PROPERTIES, changedProperties);
     }
 
     public void processBookingPriced(Booking booking, DateTime eventDate, BigDecimal totalCharged, String currencyCode) {
@@ -232,6 +250,11 @@ public class BookingQuotesAuditService {
                 .filter(quote -> quote.getEventType() == EventType.BOOKING_PRICED)
                 .collect(Collectors.toList());
 
+        if (bookingRecord.getEventType() == EventType.BOOKING_AMENDED
+             && priceRecords.stream().noneMatch(q -> isRelevantForBooking(bookingRecord, q) && jobDateEquals(bookingRecord, q))) {
+            logger.debug("Skipped BookingAmended event because of insufficient data (booking.id: {})", bookingId);
+            return;
+        }
         addPriceInfo(bookingRecord, priceRecords);
         addRestrictionInfo(bookingRecord, restrictionRecords);
 
@@ -258,6 +281,7 @@ public class BookingQuotesAuditService {
                             .filter(quote -> isRelevantForBooking(bookingRecord, quote))
                             .filter(quote -> quote.getCreateDate().getMillis() + batchMaxAgeMilliseconds >
                                     bookingRecord.getCreateDate().getMillis())
+                            .filter(quote -> jobDateEquals(bookingRecord, quote))
                             .filter(quote -> StringUtils.isNotBlank(quote.getTransactionId()))
                             .filter(quote -> leadTimeQuotedBatches.get(quote.getTransactionId()).size() > 1)
                             .max(Comparator.comparing(ProductQuotationRecord::getCreateDate))
@@ -298,6 +322,10 @@ public class BookingQuotesAuditService {
                 }
             }
         } else {
+            if (bookingRecord.getEventType() == EventType.BOOKING_AMENDED) {
+                logger.debug("Skipped BookingAmended event because of insufficient data (booking.id: {})", bookingId);
+                return;
+            }
             logger.debug("Saving booking (id: {}, number: {}) to the database",
                     bookingId, bookingRecord.getBookingNumber());
             persistRecordsAsQuotation(Collections.singletonList(bookingRecord));
@@ -311,6 +339,21 @@ public class BookingQuotesAuditService {
         return Objects.equals(originalRecord.getProductId(), otherRecord.getProductId()) &&
                 isEachStopRelevant(originalRecord, otherRecord) &&
                 Objects.equals(originalRecord.getAsap(), otherRecord.getAsap());
+    }
+
+    private boolean jobDateEquals(ProductQuotationRecord originalRecord, ProductQuotationRecord otherRecord) {
+        //compare prebooks only
+        if (BooleanUtils.isNotFalse(originalRecord.getAsap()) || BooleanUtils.isNotFalse(otherRecord.getAsap())) {
+            return true;
+        }
+
+        DateTime originalRecordDate = originalRecord.getBookingDate();
+        DateTime otherRecordDate = otherRecord.getBookingDate();
+        if (ObjectUtils.anyNull(originalRecordDate, otherRecordDate)) {
+            return false;
+        }
+        return originalRecordDate.withSecondOfMinute(0).withMillisOfSecond(0)
+                .equals(otherRecordDate.withSecondOfMinute(0).withMillisOfSecond(0));
     }
 
     private boolean isEachStopRelevant(ProductQuotationRecord originalRecord,
