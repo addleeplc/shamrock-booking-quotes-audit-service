@@ -86,6 +86,16 @@ public class Booking implements Serializable {
     @JsonProperty("execution_status")
     private Job.ExecutionStatus executionStatus;
 
+    @JsonProperty("cancellation_date")
+    @JsonDeserialize(using = DateTimeAdapter.Deserializer.class)
+    @JsonSerialize(using = DateTimeAdapter.Serializer.class)
+    private DateTime cancellationDate;
+
+    @JsonProperty("completion_date")
+    @JsonDeserialize(using = DateTimeAdapter.Deserializer.class)
+    @JsonSerialize(using = DateTimeAdapter.Serializer.class)
+    private DateTime completionDate;
+
     @JsonProperty("booking_channel")
     private String bookingChannel;
 
@@ -247,6 +257,22 @@ public class Booking implements Serializable {
 
     public void setExecutionStatus(Job.ExecutionStatus executionStatus) {
         this.executionStatus = executionStatus;
+    }
+
+    public DateTime getCancellationDate() {
+        return cancellationDate;
+    }
+
+    public void setCancellationDate(DateTime cancellationDate) {
+        this.cancellationDate = cancellationDate;
+    }
+
+    public DateTime getCompletionDate() {
+        return completionDate;
+    }
+
+    public void setCompletionDate(DateTime completionDate) {
+        this.completionDate = completionDate;
     }
 
     public String getBookingChannel() {

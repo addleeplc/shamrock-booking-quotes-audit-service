@@ -96,15 +96,7 @@ public class BookingQuotesAuditService {
     }
 
     public void processBookingAmended(Booking booking, DateTime eventDate, Set<String> changedProperties) {
-        if (isTestAccount(booking)) {
-            return;
-        }
-        if (isDriverTookTheJob(booking)) {
-            logger.debug("Skipped BookingAmended event because driver already started the job (booking.id: {})", booking.getId());
-            return;
-        }
-        if (CollectionUtils.isNotEmpty(changedProperties) && !hasRelevantChange(changedProperties)) {
-            logger.debug("Skipped BookingAmended event because relevant properties are not affected (booking.id: {})", booking.getId());
+        if (isTestAccount(booking) || ignoreBookingAmend(booking, changedProperties)) {
             return;
         }
 
@@ -251,8 +243,8 @@ public class BookingQuotesAuditService {
                 .collect(Collectors.toList());
 
         if (bookingRecord.getEventType() == EventType.BOOKING_AMENDED
-             && priceRecords.stream().noneMatch(q -> isRelevantForBooking(bookingRecord, q) && jobDateEquals(bookingRecord, q))) {
-            logger.debug("Skipped BookingAmended event because of insufficient data (booking.id: {})", bookingId);
+                && priceRecords.stream().noneMatch(q -> isRelevantForBooking(bookingRecord, q) && jobDateEquals(bookingRecord, q))) {
+            logger.debug("Skipped BookingAmended event because of missing data: price (booking.id: {})", bookingId);
             return;
         }
         addPriceInfo(bookingRecord, priceRecords);
@@ -323,7 +315,7 @@ public class BookingQuotesAuditService {
             }
         } else {
             if (bookingRecord.getEventType() == EventType.BOOKING_AMENDED) {
-                logger.debug("Skipped BookingAmended event because of insufficient data (booking.id: {})", bookingId);
+                logger.debug("Skipped BookingAmended event because of missing data: lead time (booking.id: {})", bookingId);
                 return;
             }
             logger.debug("Saving booking (id: {}, number: {}) to the database",
@@ -636,7 +628,31 @@ public class BookingQuotesAuditService {
         return true;
     }
 
-    private boolean isDriverTookTheJob(Booking booking) {
+    private boolean ignoreBookingAmend(Booking booking, Set<String> changedProperties) {
+        Booking reloadedBooking = reloadBooking(booking);
+        if (reloadedBooking != null) {
+            if (reloadedBooking.getCompletionDate() != null) {
+                logger.debug("Skipped BookingAmended event because the job is completed (booking.id: {})", booking.getId());
+                return true;
+            } else if (reloadedBooking.getCancellationDate() != null) {
+                logger.debug("Skipped BookingAmended event because the job is cancelled (booking.id: {})", booking.getId());
+                return true;
+            } else if (isDriverTookTheJob(reloadedBooking)) {
+                logger.debug("Skipped BookingAmended event because driver already started the job (booking.id: {})", booking.getId());
+                return true;
+            }
+        }
+
+        boolean hasRelevantChange = CollectionUtils.isNotEmpty(changedProperties)
+                && CollectionUtils.containsAny(AMEND_RELEVANT_PROPERTIES, changedProperties);
+        if (!hasRelevantChange) {
+            logger.debug("Skipped BookingAmended event because relevant properties are not affected (booking.id: {})", booking.getId());
+            return true;
+        }
+        return false;
+    }
+
+    private Booking reloadBooking(Booking booking) {
         Booking reloadedBooking = null;
         try {
             reloadedBooking = bookingCacheService.getBooking(booking.getId());
@@ -648,18 +664,20 @@ public class BookingQuotesAuditService {
                 reloadedBooking = bookingRegistryService.getBooking(booking.getId());
                 if (reloadedBooking == null) {
                     logger.warn("Fail to find the booking with the given id (booking.id: {})", booking.getId());
-                    return false;
                 }
             }
-            Driver driver;
-            Supplier supplier = reloadedBooking.getSupplier();
-            Job.ExecutionStatus executionStatus = reloadedBooking.getExecutionStatus();
-            driver = supplier != null ? supplier.getDriverReference() : reloadedBooking.getDriver();
-
-            return driver != null && executionStatus != null && DRIVER_STARTED_JOB_STATUSES.contains(executionStatus);
+            return reloadedBooking;
         } catch (Exception e) {
-            logger.warn("Fail to check if a driver took the job (booking.id: {})", booking.getId(), e);
-            return false;
+            logger.warn("Fail to reload booking (booking.id: {})", booking.getId(), e);
+            return null;
         }
+    }
+
+    private boolean isDriverTookTheJob(Booking booking) {
+        Driver driver;
+        Supplier supplier = booking.getSupplier();
+        Job.ExecutionStatus executionStatus = booking.getExecutionStatus();
+        driver = supplier != null ? supplier.getDriverReference() : booking.getDriver();
+        return driver != null && executionStatus != null && DRIVER_STARTED_JOB_STATUSES.contains(executionStatus);
     }
 }
