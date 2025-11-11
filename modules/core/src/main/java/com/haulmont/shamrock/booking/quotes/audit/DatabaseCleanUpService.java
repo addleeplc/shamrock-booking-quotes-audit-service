@@ -19,7 +19,7 @@ public class DatabaseCleanUpService {
     @Inject
     private QuotationRepository quotationRepository;
 
-    @Schedule(schedule = ServiceConfiguration.DB_CLEAN_CHECK_RATE, delay = ServiceConfiguration.DB_CLEAN_CHECK_RATE)
+    @Schedule(schedule = ServiceConfiguration.DB_CLEAN_CHECK_RATE, delay = ServiceConfiguration.DB_CLEAN_CHECK_RATE, singleton = true)
     public void clean() {
         DateTime now = DateTime.now();
         quotationRepository.cleanUp(now.minusDays(getDays()));

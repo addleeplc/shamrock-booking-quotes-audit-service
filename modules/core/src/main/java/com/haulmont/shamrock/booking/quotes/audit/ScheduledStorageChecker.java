@@ -29,7 +29,7 @@ public class ScheduledStorageChecker {
     @Inject
     private Logger logger;
 
-    @Schedule(schedule = ServiceConfiguration.STORAGE_CHECK_RATE, delay = ServiceConfiguration.STORAGE_CHECK_RATE)
+    @Schedule(schedule = ServiceConfiguration.STORAGE_CHECK_RATE, delay = ServiceConfiguration.STORAGE_CHECK_RATE, singleton = true)
     public void check() {
         for (UUID bookingId : productQuotationRecordStorage.keys()) {
             try {
