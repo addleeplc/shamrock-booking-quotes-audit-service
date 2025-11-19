@@ -31,12 +31,20 @@ public class ScheduledStorageChecker {
 
     @Schedule(schedule = ServiceConfiguration.STORAGE_CHECK_RATE, delay = ServiceConfiguration.STORAGE_CHECK_RATE, singleton = true)
     public void check() {
-        for (UUID bookingId : productQuotationRecordStorage.keys()) {
-            try {
-                bookingQuotesAuditService.checkRecordsFromIntermediateStorage(bookingId);
-            } catch (Exception e) {
-                logger.warn("Fail to check booking from intermediate storage", e);
+        long start = System.currentTimeMillis();
+        logger.info("Started scheduled intermediate storage check");
+        try {
+            for (UUID bookingId : productQuotationRecordStorage.keys()) {
+                try {
+                    bookingQuotesAuditService.checkRecordsFromIntermediateStorage(bookingId);
+                } catch (Exception e) {
+                    logger.warn("Fail to check booking from intermediate storage", e);
+                }
             }
+        } catch (Exception e) {
+            logger.warn("Fail to load booking ids from intermediate storage", e);
+        } finally {
+            logger.info("Finished scheduled intermediate storage check in {} ms", System.currentTimeMillis() - start);
         }
     }
 }
